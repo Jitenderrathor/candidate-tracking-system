@@ -1,4 +1,5 @@
 const createApp = require('./app');
+// Trigger nodemon
 const env = require('./config/env');
 const { connectDatabase, disconnectDatabase } = require('./config/database');
 
