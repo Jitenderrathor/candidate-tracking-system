@@ -21,14 +21,13 @@ Failed responses:
 ## Current routes
 
 - `GET /health`
-- `GET /api/v1/auth`
-- `GET /api/v1/users`
-- `GET /api/v1/candidates`
-- `GET /api/v1/dashboard`
-- `GET /api/v1/reports`
-- `GET /api/v1/excel-import`
-- `GET /api/v1/status-workflow`
+- Authentication: [`authentication.md`](authentication.md)
+- Candidates: [`candidates.md`](candidates.md)
+- Recruitment workflow: [`status-workflow.md`](status-workflow.md)
+- Dashboard analytics: [`dashboard.md`](dashboard.md)
+- Excel candidate import: [`excel-import.md`](excel-import.md)
+- Recruitment reports: [`reports.md`](reports.md)
+- User management: `GET/POST /api/users`, `GET/PUT /api/users/:id`, activation, deactivation, and password reset actions
 - `GET /api/v1/activity-logs`
 
-The module routes are readiness endpoints only. Domain endpoints will be added with their business implementations.
-
+Canonical feature APIs are exposed beneath `/api`. The versioned prefix remains available for centrally registered compatibility routes. Activity logs currently expose a readiness endpoint; audit records are written internally by transactional services.

@@ -2,7 +2,7 @@
 
 ## Goals
 
-The backend is a modular Express application. Feature code is grouped by business capability, while reusable HTTP infrastructure lives under `common`. This setup intentionally contains no domain business logic.
+The backend is a modular Express application. Feature code is grouped by business capability, while reusable HTTP infrastructure lives under `common`.
 
 ## Runtime flow
 
@@ -15,7 +15,7 @@ HTTP request
   -> validation middleware (when endpoints are added)
   -> controller
   -> service
-  -> repository/model (future)
+  -> Mongoose model / aggregation
   -> standard API response
   -> centralized error middleware on failure
 ```
@@ -65,4 +65,3 @@ Each module owns its router, controller, service, and validation definitions. Fu
 ## Configuration and startup
 
 Copy `server/.env.example` to `server/.env` when local overrides are needed. From `server`, run `npm install`, then `npm start`. The health check is available at `GET /health`.
-

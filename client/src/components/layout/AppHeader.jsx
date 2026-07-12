@@ -1,0 +1,64 @@
+import { Bell, Menu, Search, UserRoundSearch } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
+import { ProfileMenu } from '@/components/layout/ProfileMenu';
+import { getPageTitle } from '@/utils/dashboardNavigation';
+
+export function AppHeader({ onLogout, onOpenNavigation, user }) {
+  const { pathname } = useLocation();
+
+  return (
+    <header className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur-xl">
+      <div className="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8">
+        <button
+          aria-label="Open navigation"
+          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+          onClick={onOpenNavigation}
+          type="button"
+        >
+          <Menu className="size-5" />
+        </button>
+        <span
+          aria-label="Company logo"
+          className="hidden size-9 place-items-center rounded-lg bg-brand-600 text-white sm:grid lg:hidden"
+        >
+          <UserRoundSearch className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <h1 className="truncate text-base font-semibold text-slate-950 sm:text-lg">
+            {getPageTitle(pathname)}
+          </h1>
+        </div>
+        <div className="ml-auto hidden w-full max-w-xs md:block">
+          <label className="relative block">
+            <span className="sr-only">Search</span>
+            <Search
+              aria-hidden="true"
+              className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              className="h-10 w-full rounded-xl border bg-slate-50 pl-9 pr-3 text-sm placeholder:text-slate-400"
+              placeholder="Search (coming soon)"
+              readOnly
+              type="search"
+            />
+          </label>
+        </div>
+        <button
+          aria-label="Notifications"
+          className="relative rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          onClick={() => toast('No new notifications.')}
+          type="button"
+        >
+          <Bell className="size-5" />
+          <span className="absolute right-2 top-2 size-1.5 rounded-full bg-brand-500" />
+        </button>
+        <ProfileMenu onLogout={onLogout} user={user} />
+      </div>
+      <div className="border-t bg-white px-4 py-2 sm:px-6 lg:px-8">
+        <Breadcrumbs />
+      </div>
+    </header>
+  );
+}
