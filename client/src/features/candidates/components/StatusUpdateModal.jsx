@@ -4,15 +4,25 @@ import toast from 'react-hot-toast';
 import { Button, Loader, Modal, Select } from '@/components/common';
 import { ROLES } from '@/constants/auth';
 import { updateCandidateStatus } from '@/features/candidates/candidate.api';
-import { FORWARD_TRANSITIONS } from '@/features/candidates/candidate.constants';
+import { STATUS_ORDER, CANDIDATE_STATUSES } from '@/features/candidates/candidate.constants';
 import { FormTextarea } from '@/features/candidates/components/FormTextarea';
 
 const transitionsFor = (status, role) => {
-  const next = FORWARD_TRANSITIONS[status];
-  if (next) return [{ label: next, value: next }];
-  if (status === 'Selected' && role === ROLES.ADMIN)
-    return [{ label: 'Under Consideration', value: 'Under Consideration' }];
-  return [];
+  if (status === 'Rejected') return [];
+  const currentOrder = STATUS_ORDER[status] || 0;
+  
+  const options = CANDIDATE_STATUSES
+    .filter((s) => s !== 'Rejected' && s !== status && STATUS_ORDER[s] > currentOrder)
+    .map((s) => ({ label: s, value: s }));
+    
+  if (role === ROLES.ADMIN) {
+    CANDIDATE_STATUSES
+      .filter((s) => s !== 'Rejected' && s !== status && STATUS_ORDER[s] < currentOrder)
+      .forEach((s) => options.push({ label: `${s} (Rollback)`, value: s }));
+  }
+  
+  options.push({ label: 'Rejected', value: 'Rejected' });
+  return options;
 };
 
 export function StatusUpdateModal({ candidate, isOpen, onClose, role }) {
@@ -22,7 +32,10 @@ export function StatusUpdateModal({ candidate, isOpen, onClose, role }) {
   const [remarks, setRemarks] = useState('');
   const [error, setError] = useState('');
   const queryClient = useQueryClient();
-  const isBackward = candidate.status === 'Selected' && status === 'Under Consideration';
+  
+  const currentOrder = STATUS_ORDER[candidate.status] || 0;
+  const nextOrder = STATUS_ORDER[status] || 0;
+  const isBackward = status !== 'Rejected' && nextOrder < currentOrder;
   const mutation = useMutation({
     mutationFn: () => updateCandidateStatus({ id: candidate.candidateId, status, remarks }),
     onSuccess: async (response) => {

@@ -1,8 +1,11 @@
-import { FileBarChart, FileSpreadsheet, UserPlus, Users } from 'lucide-react';
+import { FileBarChart, FileSpreadsheet, UserPlus, Users, Trash2, ShieldAlert } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Card } from '@/components/common';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button, Card, Modal } from '@/components/common';
 import { ROLES } from '@/constants/auth';
 import { ROUTES } from '@/constants/routes';
+import { bulkDeleteCandidates } from '@/features/candidates/candidate.api';
 
 const actions = [
   {
@@ -32,20 +35,45 @@ const actions = [
     path: ROUTES.USERS,
     roles: [ROLES.ADMIN],
   },
+  {
+    label: 'Recycle Bin',
+    description: 'View deleted records',
+    icon: Trash2,
+    path: ROUTES.TRASH,
+    roles: [ROLES.ADMIN],
+  },
 ];
 
 export function QuickActions({ role }) {
+  const [showWipeModal, setShowWipeModal] = useState(false);
+  const queryClient = useQueryClient();
   const visibleActions = actions.filter((action) => !action.roles || action.roles.includes(role));
+
+  const wipeMutation = useMutation({
+    mutationFn: bulkDeleteCandidates,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['internal-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+      setShowWipeModal(false);
+    },
+  });
 
   return (
     <section aria-labelledby="quick-actions-title">
-      <div className="mb-4">
-        <h2 className="font-semibold text-slate-950" id="quick-actions-title">
-          Quick Actions
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">Frequently used recruitment tools.</p>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="font-semibold text-slate-950" id="quick-actions-title">
+            Quick Actions
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">Frequently used recruitment tools.</p>
+        </div>
+        {role === ROLES.ADMIN && (
+          <Button onClick={() => setShowWipeModal(true)} variant="danger" size="sm">
+            <ShieldAlert className="size-4" /> Wipe Complete Data
+          </Button>
+        )}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {visibleActions.map(({ description, icon: Icon, label, path, state }) => (
           <Card
             className="group p-4 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg"
@@ -64,6 +92,33 @@ export function QuickActions({ role }) {
           </Card>
         ))}
       </div>
+
+      <Modal
+        isOpen={showWipeModal}
+        onClose={() => setShowWipeModal(false)}
+        title="Wipe Complete Data"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl bg-red-50 p-4 text-sm text-red-800">
+            <strong>Warning:</strong> You are about to move all candidates to the Recycle Bin. They will be temporarily stored there and automatically deleted after 30 days unless restored.
+          </div>
+          <p className="text-sm text-slate-600">
+            Are you absolutely sure you want to clear all candidate records?
+          </p>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button disabled={wipeMutation.isPending} onClick={() => setShowWipeModal(false)} variant="outline">
+              Cancel
+            </Button>
+            <Button
+              disabled={wipeMutation.isPending}
+              onClick={() => wipeMutation.mutate()}
+              variant="danger"
+            >
+              {wipeMutation.isPending ? 'Wiping Data...' : 'Yes, Wipe Data'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </section>
   );
 }

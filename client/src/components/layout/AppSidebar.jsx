@@ -61,19 +61,7 @@ export function AppSidebar({ collapsed, isMobileOpen, onCloseMobile, onLogout, o
               <span className={cn(collapsed && 'lg:sr-only')}>{label}</span>
             </NavLink>
           ))}
-          <button
-            className={cn(
-              itemClasses,
-              'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
-              collapsed && 'lg:justify-center lg:px-0',
-            )}
-            onClick={() => toast('Settings are coming soon.')}
-            title={collapsed ? 'Settings' : undefined}
-            type="button"
-          >
-            <Settings aria-hidden="true" className="size-5 shrink-0" />
-            <span className={cn(collapsed && 'lg:sr-only')}>Settings</span>
-          </button>
+
         </nav>
         <div className="border-t p-3">
           <button

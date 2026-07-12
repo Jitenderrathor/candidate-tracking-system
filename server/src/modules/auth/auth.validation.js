@@ -28,7 +28,7 @@ const forgotPasswordValidation = [
 ];
 
 const resetPasswordValidation = [
-  body('token').isString().trim().notEmpty().withMessage('Reset token is required'),
+  body('token').isString().trim().isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
   passwordRules('newPassword'),
 ];
 

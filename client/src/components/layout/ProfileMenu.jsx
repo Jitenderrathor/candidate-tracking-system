@@ -1,4 +1,4 @@
-import { ChevronDown, KeyRound, LogOut, UserRound } from 'lucide-react';
+import { ChevronDown, KeyRound, LogOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -57,17 +57,7 @@ export function ProfileMenu({ onLogout, user }) {
               {user?.role}
             </span>
           </div>
-          <button
-            className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-            onClick={() => {
-              setOpen(false);
-              toast('Profile page is coming soon.');
-            }}
-            role="menuitem"
-            type="button"
-          >
-            <UserRound className="size-4" /> Profile
-          </button>
+
           <Link
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
             onClick={() => setOpen(false)}

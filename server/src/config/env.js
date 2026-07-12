@@ -90,4 +90,11 @@ module.exports = Object.freeze({
     10000,
     'SHUTDOWN_TIMEOUT_MS',
   ),
+  smtp: {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parsePositiveInteger(process.env.SMTP_PORT, 465, 'SMTP_PORT'),
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM || 'Candidate Tracking System <noreply@example.com>',
+  },
 });

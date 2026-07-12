@@ -10,5 +10,6 @@ export const ROUTES = Object.freeze({
   EXCEL_IMPORT: '/excel-import',
   REPORTS: '/reports',
   PUBLIC_DASHBOARD: '/public-dashboard',
+  TRASH: '/trash',
   NOT_FOUND: '/404',
 });

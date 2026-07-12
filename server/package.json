@@ -24,10 +24,13 @@
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "express-validator": "^7.3.0",
+    "gender-detection-from-name": "^1.11.4",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.1",
+    "morgan": "^1.10.1",
     "multer": "^2.0.2",
-    "morgan": "^1.10.1"
+    "node-cron": "^4.6.0",
+    "nodemailer": "^9.0.3"
   }
 }

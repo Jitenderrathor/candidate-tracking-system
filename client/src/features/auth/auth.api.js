@@ -14,3 +14,8 @@ export const changePasswordRequest = async (values) => {
   const response = await apiClient.post('/auth/change-password', values);
   return response.data;
 };
+
+export const resetPasswordRequest = async (values) => {
+  const response = await apiClient.post('/auth/reset-password', values);
+  return response.data;
+};

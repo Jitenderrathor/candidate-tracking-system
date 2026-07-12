@@ -16,13 +16,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { EditCandidatePage } from '@/pages/EditCandidatePage';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
-const isValidExternalUrl = (value) => {
-  try {
-    return ['http:', 'https:'].includes(new URL(value).protocol);
-  } catch {
-    return false;
-  }
-};
 
 export function CandidateDetailsPage() {
   const { id } = useParams();
@@ -56,7 +49,7 @@ export function CandidateDetailsPage() {
 
   const fullName = candidate.fullName || `${candidate.firstName} ${candidate.lastName}`;
   const registrationDate = candidate.registrationDate || candidate.createdAt;
-  const hasResume = isValidExternalUrl(candidate.resumeUrl);
+  const hasResume = Boolean(candidate.resumeUrl);
   const candidateFields = [
     { label: 'Registration Date', value: dateFormatter.format(new Date(registrationDate)) },
     { label: 'Application Type', value: candidate.applicationType },

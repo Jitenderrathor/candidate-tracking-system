@@ -6,18 +6,29 @@ const activityLogService = require('../activity-logs/activityLog.service');
 const StatusHistory = require('./statusHistory.model');
 const { TRANSACTION_OPTIONS } = require('../../config/database');
 
-const FORWARD_TRANSITIONS = Object.freeze({
-  Registered: 'Under Consideration',
-  'Under Consideration': 'To Be Shortlisted',
-  'To Be Shortlisted': 'Selected',
-});
+const STATUS_ORDER = {
+  'Registered': 1,
+  'Under Consideration': 2,
+  'To Be Shortlisted': 3,
+  'Selected': 4,
+};
 
 const validateTransition = ({ oldStatus, newStatus, role, remarks }) => {
-  if (FORWARD_TRANSITIONS[oldStatus] === newStatus) return;
+  if (oldStatus === newStatus) {
+    throw new AppError('Candidate is already in this status', 422, { code: 'SAME_STATUS' });
+  }
 
-  const isAdminRollback = oldStatus === 'Selected'
-    && newStatus === 'Under Consideration'
-    && role === 'Admin';
+  // Moving to Rejected is always allowed from any non-Rejected status
+  if (newStatus === 'Rejected' && oldStatus !== 'Rejected') return;
+
+  const oldOrder = STATUS_ORDER[oldStatus] || 0;
+  const newOrder = STATUS_ORDER[newStatus] || 0;
+
+  // Forward transition (skipping steps is allowed)
+  if (newOrder > oldOrder) return;
+
+  // Backward transition
+  const isAdminRollback = role === 'Admin';
   if (isAdminRollback) {
     if (!remarks?.trim()) {
       throw new AppError('Remarks are required when moving a candidate backwards', 422, {
@@ -27,8 +38,8 @@ const validateTransition = ({ oldStatus, newStatus, role, remarks }) => {
     return;
   }
 
-  if (oldStatus === 'Selected' && newStatus === 'Under Consideration') {
-    throw new AppError('Only an Admin can move a selected candidate backwards', 403, {
+  if (newOrder < oldOrder) {
+    throw new AppError('Only an Admin can move a candidate backwards', 403, {
       code: 'ADMIN_REQUIRED_FOR_BACKWARD_TRANSITION',
     });
   }

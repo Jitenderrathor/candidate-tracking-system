@@ -14,6 +14,13 @@ const {
 const router = express.Router();
 
 router.use(authenticate);
+
+// Trash routes (must be placed before /:id routes so "trash" isn't treated as an ID)
+router.get('/trash/list', adminOnly, listCandidatesValidation, validateRequest, asyncHandler(controller.listTrash));
+router.post('/trash/bulk-delete', adminOnly, asyncHandler(controller.bulkDelete));
+router.post('/trash/bulk-restore', adminOnly, asyncHandler(controller.bulkRestore));
+router.post('/trash/:id/restore', adminOnly, candidateIdValidation, validateRequest, asyncHandler(controller.restoreCandidate));
+
 router.post('/', userOrAdmin, createCandidateValidation, validateRequest, asyncHandler(controller.createCandidate));
 router.get('/', userOrAdmin, listCandidatesValidation, validateRequest, asyncHandler(controller.listCandidates));
 router.get('/:id', userOrAdmin, candidateIdValidation, validateRequest, asyncHandler(controller.getCandidate));

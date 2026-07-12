@@ -115,8 +115,9 @@ test('status transition keeps imported recruitment status in sync', async () => 
 
 test('invalid transition is rejected without audit writes', async () => {
   const harness = makeHarness();
-  await assert.rejects(() => harness.change('Selected'), { code: 'INVALID_STATUS_TRANSITION' });
-  assert.equal(harness.candidate.status, 'Registered');
+  harness.candidate.status = 'Under Consideration';
+  await assert.rejects(() => harness.change('Registered'), { code: 'ADMIN_REQUIRED_FOR_BACKWARD_TRANSITION' });
+  assert.equal(harness.candidate.status, 'Under Consideration');
   assert.equal(harness.histories.length, 0);
   assert.equal(harness.activities.length, 0);
 });

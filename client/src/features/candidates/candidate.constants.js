@@ -32,8 +32,9 @@ export const SORT_OPTIONS = [
   { label: 'Experience: low to high', value: 'experienceYears' },
 ];
 
-export const FORWARD_TRANSITIONS = {
-  Registered: 'Under Consideration',
-  'Under Consideration': 'To Be Shortlisted',
-  'To Be Shortlisted': 'Selected',
+export const STATUS_ORDER = {
+  Registered: 1,
+  'Under Consideration': 2,
+  'To Be Shortlisted': 3,
+  Selected: 4,
 };

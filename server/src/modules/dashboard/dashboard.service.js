@@ -10,16 +10,14 @@ const GENDER_SUMMARY_CATEGORIES = ['Male', 'Female', 'Unknown / Not Specified'];
 const ACTIVE_FILTER = Object.freeze({ isDeleted: false });
 
 const countsPipeline = () => [
+  { $match: ACTIVE_FILTER },
   {
     $group: {
       _id: null,
       totalCandidates: { $sum: 1 },
-      activeCandidates: {
-        $sum: { $cond: [{ $eq: ['$isDeleted', false] }, 1, 0] },
-      },
     },
   },
-  { $project: { _id: 0, totalCandidates: 1, activeCandidates: 1 } },
+  { $project: { _id: 0, totalCandidates: 1 } },
 ];
 
 const categoricalSummaryPipeline = (field, categories, outputField, groupId = `$${field}`) => [

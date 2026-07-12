@@ -34,3 +34,23 @@ export const getCandidateHistory = async (id) => {
   const response = await apiClient.get(`/candidates/${id}/history`);
   return response.data.data.history;
 };
+
+export const listTrash = async (params) => {
+  const response = await apiClient.get('/candidates/trash/list', { params });
+  return { candidates: response.data.data.candidates, meta: response.data.meta };
+};
+
+export const restoreCandidate = async (id) => {
+  const response = await apiClient.post(`/candidates/trash/${id}/restore`);
+  return response.data;
+};
+
+export const bulkDeleteCandidates = async (candidateIds = []) => {
+  const response = await apiClient.post('/candidates/trash/bulk-delete', { candidateIds });
+  return response.data;
+};
+
+export const bulkRestoreCandidates = async () => {
+  const response = await apiClient.post('/candidates/trash/bulk-restore');
+  return response.data;
+};

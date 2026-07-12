@@ -33,3 +33,14 @@ export const changePasswordSchema = z
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   });
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().length(6, 'OTP must be exactly 6 digits'),
+    newPassword: strongPassword,
+    confirmPassword: z.string().min(1, 'Confirm your new password'),
+  })
+  .refine(({ confirmPassword, newPassword }) => confirmPassword === newPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });

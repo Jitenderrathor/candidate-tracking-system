@@ -289,3 +289,28 @@ test('invalid rows return detailed errors and do not call insertMany', async () 
   assert.ok(result.validationErrors[0].errors.includes('Invalid Mobile'));
   assert.ok(result.validationErrors[0].errors.includes('Invalid Experience'));
 });
+
+test('gender is detected from first name when omitted or using profile import', () => {
+  // Profile row has no explicit gender column
+  const profileResult = validateRow({
+    rowNumber: 2,
+    format: 'profile',
+    values: {
+      Date: '2026-06-15', Type: 'Full Time', Name: 'John Smith',
+      Email: 'john@example.com', Phone: '+1234567890',
+    },
+  });
+  assert.equal(profileResult.candidate.gender, 'Male');
+
+  const legacyResult = validateRow({
+    rowNumber: 3,
+    format: 'legacy',
+    values: {
+      'First Name': 'Sarah', 'Last Name': 'Connor',
+      Email: 'sarah@example.com', Mobile: '+1234567891',
+      Address: 'NY', Qualification: 'BSc', Experience: 5, Source: 'Website',
+      'Date Of Birth': '1990-01-01', Skills: 'Shooting',
+    },
+  });
+  assert.equal(legacyResult.candidate.gender, 'Female');
+});

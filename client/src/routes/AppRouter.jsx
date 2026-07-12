@@ -38,6 +38,9 @@ const ExcelImportPage = lazy(() =>
 const ReportsPage = lazy(() =>
   import('@/pages/ReportsPage').then((module) => ({ default: module.ReportsPage })),
 );
+const TrashPage = lazy(() =>
+  import('@/pages/TrashPage').then((module) => ({ default: module.TrashPage })),
+);
 
 export function AppRouter() {
   return (
@@ -124,6 +127,14 @@ export function AppRouter() {
               </Suspense>
             }
             path={ROUTES.EXCEL_IMPORT}
+          />
+          <Route
+            element={
+              <Suspense fallback={<LoadingPage />}>
+                <TrashPage />
+              </Suspense>
+            }
+            path={ROUTES.TRASH}
           />
         </Route>
       </Route>

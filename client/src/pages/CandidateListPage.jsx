@@ -1,11 +1,11 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Download, Eye, Filter, Pencil, Plus, RefreshCw, Workflow } from 'lucide-react';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Download, Eye, Filter, Pencil, Plus, RefreshCw, Workflow, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Button, Card, EmptyState, Pagination, SearchBox, Table } from '@/components/common';
 import { ROLES } from '@/constants/auth';
 import { ROUTES } from '@/constants/routes';
-import { listCandidates } from '@/features/candidates/candidate.api';
+import { listCandidates, bulkDeleteCandidates } from '@/features/candidates/candidate.api';
 import { CandidateFilters } from '@/features/candidates/components/CandidateFilters';
 import { CandidateListSkeleton } from '@/features/candidates/components/CandidateListSkeleton';
 import { StatusUpdateModal } from '@/features/candidates/components/StatusUpdateModal';
@@ -29,21 +29,15 @@ const filterDefaults = {
   sort: '-createdAt',
 };
 const detailPath = (id) => ROUTES.CANDIDATE_DETAILS.replace(':id', id);
-const hasValidResumeUrl = (value) => {
-  try {
-    const url = new URL(value);
-    return ['http:', 'https:'].includes(url.protocol);
-  } catch {
-    return false;
-  }
-};
 
 export function CandidateListPage() {
   const { user } = useAuth();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const [candidateForStatus, setCandidateForStatus] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const mode = searchParams.get('mode');
 
   useEffect(() => {
@@ -63,14 +57,30 @@ export function CandidateListPage() {
   );
   const page = Number(searchParams.get('page') || 1);
   const search = searchParams.get('search') || '';
+  
+  // Clear selection when search/filters/page changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, search, filters]);
+
   const apiParams = useMemo(() => {
     const values = { search, ...filters, page, limit: 10 };
     return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ''));
   }, [filters, page, search]);
+  
   const query = useQuery({
     queryKey: ['candidates', apiParams],
     queryFn: () => listCandidates(apiParams),
     placeholderData: keepPreviousData,
+  });
+
+  const deleteSelectedMutation = useMutation({
+    mutationFn: (ids) => bulkDeleteCandidates(ids),
+    onSuccess: () => {
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['internal-dashboard'] });
+    },
   });
 
   const updateParams = (changes) =>
@@ -84,7 +94,51 @@ export function CandidateListPage() {
 
   if (mode === 'add') return <AddCandidatePage />;
 
+  const candidatesData = query.data?.candidates || [];
+  const allCurrentPageIds = candidatesData.map((c) => c.candidateId);
+  const isAllSelected = allCurrentPageIds.length > 0 && allCurrentPageIds.every((id) => selectedIds.has(id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allCurrentPageIds));
+    }
+  };
+
+  const toggleSelectRow = (id) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
   const columns = [
+    {
+      key: 'select',
+      header: (
+        <input
+          type="checkbox"
+          checked={isAllSelected}
+          onChange={toggleSelectAll}
+          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+          aria-label="Select all"
+        />
+      ),
+      cellClassName: 'w-10 text-center',
+      render: (candidate) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.has(candidate.candidateId)}
+          onChange={() => toggleSelectRow(candidate.candidateId)}
+          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+          aria-label={`Select ${candidate.firstName}`}
+        />
+      ),
+    },
     {
       key: 'registrationDate',
       header: 'Registration Date',
@@ -113,7 +167,7 @@ export function CandidateListPage() {
       key: 'actions',
       header: 'Actions',
       render: (candidate) => {
-        const hasResume = hasValidResumeUrl(candidate.resumeUrl);
+        const hasResume = Boolean(candidate.resumeUrl);
         return (
           <div className="flex items-center gap-1">
           <Button asChild aria-label={`View ${candidate.firstName}`} size="icon" variant="ghost">
@@ -168,9 +222,24 @@ export function CandidateListPage() {
             Search, filter, and manage candidate records.
           </p>
         </div>
-        <Button onClick={() => setSearchParams({ mode: 'add' })}>
-          <Plus className="size-4" /> Add Candidate
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && user?.role === ROLES.ADMIN && (
+            <Button
+              variant="danger"
+              disabled={deleteSelectedMutation.isPending}
+              onClick={() => {
+                if (window.confirm(`Are you sure you want to delete ${selectedIds.size} candidates?`)) {
+                  deleteSelectedMutation.mutate(Array.from(selectedIds));
+                }
+              }}
+            >
+              <Trash2 className="size-4 mr-1" /> Delete Selected ({selectedIds.size})
+            </Button>
+          )}
+          <Button onClick={() => setSearchParams({ mode: 'add' })}>
+            <Plus className="size-4" /> Add Candidate
+          </Button>
+        </div>
       </header>
       <Card className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -215,7 +284,7 @@ export function CandidateListPage() {
         <>
           <Table
             columns={columns}
-            data={query.data.candidates}
+            data={candidatesData}
             emptyMessage="No candidates match your search and filters."
             getRowKey={(candidate) => candidate.candidateId}
           />

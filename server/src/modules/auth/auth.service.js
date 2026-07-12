@@ -44,15 +44,22 @@ const changePassword = async (userId, { oldPassword, newPassword }) => {
   await user.save();
 };
 
+const { sendPasswordResetOTP } = require('../email/email.service');
+
 const forgotPassword = async (email) => {
   const user = await User.findOne({ email });
   if (!user || !user.isActive) return null;
 
-  const token = crypto.randomBytes(32).toString('hex');
-  user.passwordResetToken = crypto.createHash('sha256').update(token).digest('hex');
+  // Generate a 6-digit numeric OTP
+  const otp = crypto.randomInt(100000, 999999).toString();
+  
+  user.passwordResetToken = crypto.createHash('sha256').update(otp).digest('hex');
   user.passwordResetExpires = new Date(Date.now() + env.passwordResetExpiresMinutes * 60 * 1000);
   await user.save();
-  return token;
+  
+  await sendPasswordResetOTP(email, otp);
+  
+  return otp;
 };
 
 const resetPassword = async ({ token, newPassword }) => {

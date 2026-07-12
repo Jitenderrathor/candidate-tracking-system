@@ -30,21 +30,7 @@ export function AppHeader({ onLogout, onOpenNavigation, user }) {
             {getPageTitle(pathname)}
           </h1>
         </div>
-        <div className="ml-auto hidden w-full max-w-xs md:block">
-          <label className="relative block">
-            <span className="sr-only">Search</span>
-            <Search
-              aria-hidden="true"
-              className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
-            />
-            <input
-              className="h-10 w-full rounded-xl border bg-slate-50 pl-9 pr-3 text-sm placeholder:text-slate-400"
-              placeholder="Search (coming soon)"
-              readOnly
-              type="search"
-            />
-          </label>
-        </div>
+        <div className="ml-auto hidden md:block"></div>
         <button
           aria-label="Notifications"
           className="relative rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"

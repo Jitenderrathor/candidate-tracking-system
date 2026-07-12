@@ -12,6 +12,7 @@ const {
 } = require('../candidates/candidate.constants');
 const activityLogService = require('../activity-logs/activityLog.service');
 const { TRANSACTION_OPTIONS } = require('../../config/database');
+const genderDetection = require('gender-detection-from-name');
 
 const MAX_ROWS = 10000;
 const LEGACY_HEADERS = Object.freeze([
@@ -34,7 +35,7 @@ const PROFILE_HEADER_ALIASES = Object.freeze({
   Hear: ['hear', 'source', 'recruitment source', 'how did you hear about us'],
   'File Name': ['file name', 'filename', 'resume file name', 'resume name'],
   'File Type': ['file type', 'resume file type', 'mime type'],
-  'File URL': ['file url', 'resume url', 'resume link', 'drive url', 'google drive url'],
+  'File URL': ['file url', 'resume url', 'resume link', 'drive url', 'google drive url', 'cv', 'cv link', 'cv url', 'drive link', 'resume'],
   Status: ['status', 'reference status'],
   Feedback: ['feedback', 'remarks', 'comments', 'recruiter feedback'],
   '#REF!': ['#ref!', '#ref', 'ref', 'recruitment status', 'candidate status'],
@@ -228,6 +229,14 @@ const splitName = (value) => {
   };
 };
 
+const detectGender = (firstName) => {
+  if (!firstName) return 'Prefer not to say';
+  const result = genderDetection.getGender(firstName);
+  if (result === 'male') return 'Male';
+  if (result === 'female') return 'Female';
+  return 'Prefer not to say';
+};
+
 const validateProfileRow = ({ rowNumber, values }) => {
   const errors = [];
   const registrationDate = parseDate(values.Date);
@@ -291,6 +300,7 @@ const validateProfileRow = ({ rowNumber, values }) => {
       feedback: optionalText(values.Feedback) || generatedFeedback,
       recruitmentStatus: recruitmentStatus || 'Registered',
       status: CANDIDATE_STATUSES.includes(recruitmentStatus) ? recruitmentStatus : 'Registered',
+      gender: detectGender(firstName),
     },
   };
 };
@@ -305,7 +315,6 @@ const validateLegacyRow = ({ rowNumber, values }) => {
 
   const firstName = requiredText('First Name');
   const lastName = requiredText('Last Name');
-  const gender = requiredText('Gender');
   const email = requiredText('Email').toLowerCase();
   const mobile = requiredText('Mobile');
   const address = requiredText('Address');
@@ -317,6 +326,9 @@ const validateLegacyRow = ({ rowNumber, values }) => {
   const expectedCTC = parseNumber(values['Expected CTC'], 0);
   const skills = text(values.Skills).split(',').map((skill) => skill.trim()).filter(Boolean);
   const resumeUrl = text(values['Resume URL']);
+
+  let gender = text(values.Gender);
+  if (!gender) gender = detectGender(firstName);
 
   if (!text(values['Date Of Birth'])) errors.push('Missing Date Of Birth');
   else if (!dateOfBirth || dateOfBirth >= new Date()) errors.push('Invalid Date Of Birth');

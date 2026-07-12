@@ -1,74 +1,129 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, MailCheck } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Button, Input, Loader } from '@/components/common';
 import { ROUTES } from '@/constants/routes';
-import { forgotPasswordRequest } from '@/features/auth/auth.api';
-import { forgotPasswordSchema } from '@/features/auth/auth.schemas';
+import { forgotPasswordRequest, resetPasswordRequest } from '@/features/auth/auth.api';
+import { forgotPasswordSchema, resetPasswordSchema } from '@/features/auth/auth.schemas';
 import { AuthCard } from '@/features/auth/components/AuthCard';
 
 export function ForgotPasswordPage() {
-  const {
-    formState: { errors },
-    handleSubmit,
-    register,
-  } = useForm({ resolver: zodResolver(forgotPasswordSchema) });
-  const mutation = useMutation({ mutationFn: forgotPasswordRequest });
+  const [step, setStep] = useState(1);
+  const navigate = useNavigate();
 
-  if (mutation.isSuccess) {
+  const {
+    formState: { errors: forgotErrors },
+    handleSubmit: handleForgotSubmit,
+    register: registerForgot,
+  } = useForm({ resolver: zodResolver(forgotPasswordSchema) });
+
+  const {
+    formState: { errors: resetErrors },
+    handleSubmit: handleResetSubmit,
+    register: registerReset,
+  } = useForm({ resolver: zodResolver(resetPasswordSchema) });
+
+  const forgotMutation = useMutation({
+    mutationFn: forgotPasswordRequest,
+    onSuccess: () => setStep(2),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: resetPasswordRequest,
+    onSuccess: () => navigate(ROUTES.LOGIN, { state: { message: 'Password reset successfully. Please log in.' } }),
+  });
+
+  if (step === 2) {
     return (
       <AuthCard
-        description="If an active account matches that address, password reset instructions have been initiated."
-        title="Check your email"
+        description="Enter the 6-digit OTP sent to your email along with your new password."
+        title="Reset password"
       >
-        <div className="rounded-xl bg-emerald-50 p-5 text-center">
-          <MailCheck aria-hidden="true" className="mx-auto size-9 text-emerald-600" />
-          <p className="mt-3 text-sm text-emerald-800" role="status">
-            {mutation.data.message}
-          </p>
-        </div>
-        <Link
-          className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-brand-700 hover:underline"
-          to={ROUTES.LOGIN}
+        <form
+          className="space-y-5"
+          noValidate
+          onSubmit={handleResetSubmit((values) => resetMutation.mutate(values))}
         >
-          <ArrowLeft className="size-4" /> Back to sign in
-        </Link>
+          <Input
+            autoFocus
+            error={resetErrors.token?.message}
+            label="6-Digit OTP"
+            placeholder="123456"
+            required
+            type="text"
+            {...registerReset('token')}
+          />
+          <Input
+            error={resetErrors.newPassword?.message}
+            label="New Password"
+            required
+            type="password"
+            {...registerReset('newPassword')}
+          />
+          <Input
+            error={resetErrors.confirmPassword?.message}
+            label="Confirm New Password"
+            required
+            type="password"
+            {...registerReset('confirmPassword')}
+          />
+          {resetMutation.isError && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              {resetMutation.error.message}
+            </p>
+          )}
+          <Button className="w-full" disabled={resetMutation.isPending} size="lg" type="submit">
+            {resetMutation.isPending ? (
+              <Loader className="text-white" label="Resetting..." size="sm" />
+            ) : (
+              'Reset Password'
+            )}
+          </Button>
+          <button
+            type="button"
+            onClick={() => setStep(1)}
+            className="w-full flex items-center justify-center gap-2 text-sm font-medium text-slate-600 hover:text-brand-700"
+          >
+            <ArrowLeft className="size-4" /> Back
+          </button>
+        </form>
       </AuthCard>
     );
   }
 
   return (
     <AuthCard
-      description="Enter your account email and we’ll start the password reset process."
+      description="Enter your account email and we’ll send you a 6-digit OTP."
       title="Forgot password?"
     >
       <form
         className="space-y-5"
         noValidate
-        onSubmit={handleSubmit((values) => mutation.mutate(values))}
+        onSubmit={handleForgotSubmit((values) => forgotMutation.mutate(values))}
       >
         <Input
           autoComplete="email"
           autoFocus
-          error={errors.email?.message}
+          error={forgotErrors.email?.message}
           label="Email"
           placeholder="you@company.com"
           required
           type="email"
-          {...register('email')}
+          {...registerForgot('email')}
         />
-        {mutation.isError && (
+        {forgotMutation.isError && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-            {mutation.error.message}
+            {forgotMutation.error.message}
           </p>
         )}
-        <Button className="w-full" disabled={mutation.isPending} size="lg" type="submit">
-          {mutation.isPending ? (
+        <Button className="w-full" disabled={forgotMutation.isPending} size="lg" type="submit">
+          {forgotMutation.isPending ? (
             <Loader className="text-white" label="Submitting..." size="sm" />
           ) : (
-            'Send reset instructions'
+            'Send OTP'
           )}
         </Button>
         <Link

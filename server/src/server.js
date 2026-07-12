@@ -55,7 +55,10 @@ if (process.env.NODE_ENV !== 'test') {
     console.error('Uncaught exception', error);
     shutdown('uncaughtException', 1);
   });
-  startServer().catch((error) => {
+  const { scheduleTrashCleanup } = require('./config/cron');
+  startServer().then(() => {
+    scheduleTrashCleanup();
+  }).catch((error) => {
     console.error('Server startup failed', error);
     shutdown('startupFailure', 1);
   });
