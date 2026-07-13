@@ -3,8 +3,8 @@ import toast from 'react-hot-toast';
 import { AUTH_LOGOUT_EVENT } from '@/constants/auth';
 import { authStorage } from '@/utils/authStorage';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://olive-donkey-403862.hostingersite.com/api';
-// const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+// const baseURL = 'https://olive-donkey-403862.hostingersite.com/api';
+const baseURL =  'http://localhost:5001/api';
 
 export const apiClient = axios.create({
   baseURL,

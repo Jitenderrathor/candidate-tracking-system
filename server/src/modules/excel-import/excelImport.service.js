@@ -12,7 +12,7 @@ const {
 } = require('../candidates/candidate.constants');
 const activityLogService = require('../activity-logs/activityLog.service');
 const { TRANSACTION_OPTIONS } = require('../../config/database');
-const genderDetection = require('gender-detection-from-name');
+const { bulkPredictGenders, detectGenderWithCache } = require('../../common/utils/genderPrediction');
 
 const MAX_ROWS = 10000;
 const LEGACY_HEADERS = Object.freeze([
@@ -229,15 +229,9 @@ const splitName = (value) => {
   };
 };
 
-const detectGender = (firstName) => {
-  if (!firstName) return 'Prefer not to say';
-  const result = genderDetection.getGender(firstName);
-  if (result === 'male') return 'Male';
-  if (result === 'female') return 'Female';
-  return 'Prefer not to say';
-};
+// Gender prediction is now handled by common/utils/genderPrediction.js
 
-const validateProfileRow = ({ rowNumber, values }) => {
+const validateProfileRow = ({ rowNumber, values }, genderCache) => {
   const errors = [];
   const registrationDate = parseDate(values.Date);
   const fullName = text(values.Name);
@@ -300,12 +294,12 @@ const validateProfileRow = ({ rowNumber, values }) => {
       feedback: optionalText(values.Feedback) || generatedFeedback,
       recruitmentStatus: recruitmentStatus || 'Registered',
       status: CANDIDATE_STATUSES.includes(recruitmentStatus) ? recruitmentStatus : 'Registered',
-      gender: detectGender(firstName),
+      gender: detectGenderWithCache(firstName, genderCache),
     },
   };
 };
 
-const validateLegacyRow = ({ rowNumber, values }) => {
+const validateLegacyRow = ({ rowNumber, values }, genderCache) => {
   const errors = [];
   const requiredText = (header) => {
     const value = text(values[header]);
@@ -328,7 +322,7 @@ const validateLegacyRow = ({ rowNumber, values }) => {
   const resumeUrl = text(values['Resume URL']);
 
   let gender = text(values.Gender);
-  if (!gender) gender = detectGender(firstName);
+  if (!gender) gender = detectGenderWithCache(firstName, genderCache);
 
   if (!text(values['Date Of Birth'])) errors.push('Missing Date Of Birth');
   else if (!dateOfBirth || dateOfBirth >= new Date()) errors.push('Invalid Date Of Birth');
@@ -379,10 +373,10 @@ const validateLegacyRow = ({ rowNumber, values }) => {
   };
 };
 
-const validateRow = (row) => (
+const validateRow = (row, genderCache) => (
   row.format === 'profile' || Object.prototype.hasOwnProperty.call(row.values, 'Name')
-    ? validateProfileRow(row)
-    : validateLegacyRow(row)
+    ? validateProfileRow(row, genderCache)
+    : validateLegacyRow(row, genderCache)
 );
 
 const createExcelImportService = ({
@@ -418,8 +412,17 @@ const createExcelImportService = ({
     let duplicateEmails = 0;
     let duplicateMobiles = 0;
 
+    // Pre-fetch genders for all unique first names to avoid API rate limits
+    const allFirstNames = parsedRows.map((row) => {
+      const fullName = row.format === 'profile' || Object.prototype.hasOwnProperty.call(row.values, 'Name')
+        ? text(row.values.Name || row.values.Name)
+        : text(row.values['First Name']);
+      return splitName(fullName).firstName;
+    });
+    const genderCache = await bulkPredictGenders(allFirstNames);
+
     parsedRows.forEach((row) => {
-      const validated = validateRow(row);
+      const validated = validateRow(row, genderCache);
       if (validated.errors.length) {
         validationErrors.push({ row: row.rowNumber, errors: validated.errors });
         return;

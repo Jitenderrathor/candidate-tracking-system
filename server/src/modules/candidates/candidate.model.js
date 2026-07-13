@@ -44,7 +44,7 @@ const candidateSchema = new mongoose.Schema({
     maxlength: 200,
     default: undefined,
   },
-  gender: { type: String, enum: GENDERS, default: 'Prefer not to say' },
+  gender: { type: String, enum: GENDERS, default: 'Male' },
   dateOfBirth: {
     type: Date,
     default: null,

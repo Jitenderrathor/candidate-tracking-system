@@ -5,7 +5,7 @@ const {
   CANDIDATE_STATUSES,
 } = require('../candidates/candidate.constants');
 
-const GENDER_SUMMARY_CATEGORIES = ['Male', 'Female', 'Unknown / Not Specified'];
+const GENDER_SUMMARY_CATEGORIES = ['Male', 'Female'];
 
 const ACTIVE_FILTER = Object.freeze({ isDeleted: false });
 
@@ -82,15 +82,6 @@ const genderSummaryPipeline = () => categoricalSummaryPipeline(
   'gender',
   GENDER_SUMMARY_CATEGORIES,
   'genderSummary',
-  {
-    $switch: {
-      branches: [
-        { case: { $eq: ['$gender', 'Male'] }, then: 'Male' },
-        { case: { $eq: ['$gender', 'Female'] }, then: 'Female' },
-      ],
-      default: 'Unknown / Not Specified',
-    },
-  },
 );
 
 const monthRange = (now = new Date()) => {

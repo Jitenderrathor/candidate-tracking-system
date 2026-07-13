@@ -17,6 +17,6 @@ const CANDIDATE_STATUSES = [
   'Rejected',
 ];
 
-const GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say'];
+const GENDERS = ['Male', 'Female'];
 
 module.exports = { CANDIDATE_SOURCES, CANDIDATE_STATUSES, GENDERS };
