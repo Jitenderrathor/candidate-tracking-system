@@ -5,6 +5,7 @@ const { Readable } = require('node:stream');
 const AppError = require('../../common/errors/AppError');
 const Candidate = require('../candidates/candidate.model');
 const CandidateCounter = require('../candidates/candidateCounter.model');
+const ImportHistory = require('./importHistory.model');
 const {
   CANDIDATE_SOURCES,
   CANDIDATE_STATUSES,
@@ -21,32 +22,29 @@ const LEGACY_HEADERS = Object.freeze([
   'Expected CTC', 'Skills', 'Resume URL', 'Source', 'Remarks',
 ]);
 const PROFILE_HEADERS = Object.freeze([
-  'Date', 'Type', 'Name', 'Email', 'Phone', 'LinkedIn Profile', 'Hear',
-  'File Name', 'File Type', 'File URL', 'Status', 'Feedback', '#REF!',
+  'Date', 'Name', 'Email', 'Phone', 'Source', 'Gender', 'Resume',
+  'Status', 'Feedback', 'LinkedIn', 'Experience',
 ]);
 const HEADERS = PROFILE_HEADERS;
 const PROFILE_HEADER_ALIASES = Object.freeze({
   Date: ['date', 'registration date', 'registered date', 'timestamp'],
-  Type: ['type', 'application type', 'job type'],
   Name: ['name', 'full name', 'candidate name'],
   Email: ['email', 'email address'],
   Phone: ['phone', 'mobile', 'mobile number', 'phone number', 'contact number'],
-  'LinkedIn Profile': ['linkedin profile', 'linkedin', 'linkedin url', 'linkedin profile url'],
-  Hear: ['hear', 'source', 'recruitment source', 'how did you hear about us'],
-  'File Name': ['file name', 'filename', 'resume file name', 'resume name'],
-  'File Type': ['file type', 'resume file type', 'mime type'],
-  'File URL': ['file url', 'resume url', 'resume link', 'drive url', 'google drive url', 'cv', 'cv link', 'cv url', 'drive link', 'resume'],
-  Status: ['status', 'reference status'],
+  Source: ['source', 'hear', 'recruitment source', 'how did you hear about us', 'platform'],
+  Gender: ['gender', 'sex'],
+  Resume: ['resume', 'resume link', 'file url', 'resume url', 'drive url', 'google drive url', 'cv', 'cv link', 'cv url', 'drive link'],
+  Status: ['status', 'reference status', 'recruitment status', 'candidate status', '#ref!', '#ref', 'ref'],
   Feedback: ['feedback', 'remarks', 'comments', 'recruiter feedback'],
-  '#REF!': ['#ref!', '#ref', 'ref', 'recruitment status', 'candidate status'],
+  LinkedIn: ['linkedin', 'linkedin profile', 'linkedin url', 'linkedin profile url'],
+  Experience: ['experience', 'experience years', 'sales experience'],
+  Type: ['type', 'application type', 'job type'],
   'Lead ID': ['id', 'lead id'],
   'Created Time': ['created time', 'created at'],
   'Ad Name': ['ad name'],
   'Campaign Name': ['campaign name'],
   'Form Name': ['form name'],
-  Platform: ['platform'],
   'Sales Interest': ['are you interested in a sales position?'],
-  'Sales Experience': ['how many years of experience do you have in sales'],
   'Phone Verified': ['phone number verified', 'phone verified'],
 });
 const REQUIRED_PROFILE_HEADERS = Object.freeze(['Name', 'Email', 'Phone']);
@@ -204,18 +202,28 @@ const parseWorkbook = async (buffer, fileName = '') => {
 
 const normalizeSource = (value) => {
   const source = text(value);
+  const normalizedLower = source.toLowerCase().replace(/[\s.-]+/g, '');
+  if (!source || /^(na|n\/a|notprovided|notapplicable|not|none|null)$/.test(normalizedLower)) return 'NA';
   const platformSources = { ig: 'Instagram', instagram: 'Instagram', fb: 'Facebook', facebook: 'Facebook' };
   if (platformSources[source.toLowerCase()]) return platformSources[source.toLowerCase()];
-  return CANDIDATE_SOURCES.find((candidateSource) => (
+  
+  const existingSource = CANDIDATE_SOURCES.find((candidateSource) => (
     candidateSource.toLowerCase() === source.toLowerCase()
-  )) || 'Other';
+  ));
+  if (existingSource) return existingSource;
+  
+  // Return the raw source capitalized to allow dynamic sources
+  return source.charAt(0).toUpperCase() + source.slice(1);
 };
 
 const normalizeRecruitmentStatus = (value) => {
   const originalStatus = optionalText(value);
   const status = originalStatus.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').toLowerCase();
   if (!status) return null;
-  if (status === 'dnp' || status === 'do not proceed') return 'Rejected';
+  
+  if (/\b(dnp|do not pick|do not proceed)\b/.test(status)) return 'DNP';
+  if (/\b(in consideration|under consideration|unc)\b/.test(status)) return 'Under Consideration';
+  
   const statuses = [...CANDIDATE_STATUSES, 'Rejected'];
   return statuses.find((candidateStatus) => candidateStatus.toLowerCase() === status)
     || originalStatus;
@@ -237,137 +245,134 @@ const validateProfileRow = ({ rowNumber, values }, genderCache) => {
   const fullName = text(values.Name);
   const email = text(values.Email).toLowerCase();
   const mobile = text(values.Phone).replace(/^p:/i, '').replace(/[\s()-]/g, '');
-  const linkedInProfile = normalizedUrl(values['LinkedIn Profile']);
-  const resumeUrl = normalizedUrl(values['File URL']);
-  const recruitmentStatus = normalizeRecruitmentStatus(values['#REF!'])
-    || (!text(values['#REF!']) ? normalizeRecruitmentStatus(values.Status) : null);
+  const linkedInProfile = normalizedUrl(values.LinkedIn) || (text(values.LinkedIn) ? 'NA' : '');
+  const resumeUrl = normalizedUrl(values.Resume);
+  const recruitmentStatus = normalizeRecruitmentStatus(values.Status);
   const { firstName, lastName } = splitName(fullName);
+  const explicitGender = optionalText(values.Gender);
+  let gender = explicitGender;
+  if (!gender || !GENDERS.includes(gender)) {
+    gender = detectGenderWithCache(firstName, genderCache);
+  }
+  if (!GENDERS.includes(gender)) gender = 'Male';
+  
+  const rawExperience = text(values.Experience);
+  let parsedExperienceYears = 0;
+  let extractedExperience = '';
+  if (rawExperience) {
+    if (/\bfresher\b/i.test(rawExperience)) {
+      extractedExperience = 'Fresher';
+      parsedExperienceYears = 0;
+    } else {
+      const expMatch = rawExperience.match(/(\d+(?:\s*-\s*\d+)?(?:\.\d+)?\+?(?:\s*(?:months?|years?|yrs?|mos?|yers?))?)/i);
+      if (expMatch) {
+        extractedExperience = expMatch[1];
+        const numStr = extractedExperience.match(/\d+(?:\.\d+)?/g).pop();
+        const isMonth = /month|mo/i.test(extractedExperience);
+        parsedExperienceYears = parseFloat(numStr);
+        if (isMonth) parsedExperienceYears = parsedExperienceYears / 12;
+      } else if (!Number.isNaN(Number(rawExperience)) && rawExperience !== '') {
+        parsedExperienceYears = Number(rawExperience);
+        extractedExperience = `${rawExperience} years`;
+      } else {
+        extractedExperience = rawExperience;
+      }
+    }
+  }
+
   const salesInterest = optionalText(values['Sales Interest']);
-  const salesExperience = optionalText(values['Sales Experience']);
   const phoneVerifiedText = optionalText(values['Phone Verified']).toLowerCase();
   const generatedFeedback = [
     salesInterest && `Interested in sales: ${salesInterest}`,
-    salesExperience && `Sales experience: ${salesExperience}`,
+    extractedExperience && `Experience: ${extractedExperience}`,
     phoneVerifiedText && `Phone verified: ${phoneVerifiedText}`,
   ].filter(Boolean).join('\n');
 
-  if (text(values.Date) && !registrationDate) errors.push('Invalid Date');
   if (!fullName) errors.push('Missing Name');
   if (!email) errors.push('Missing Email');
-  else if (!EMAIL_PATTERN.test(email)) errors.push('Invalid Email');
   if (!mobile) errors.push('Missing Phone');
-  else if (!MOBILE_PATTERN.test(mobile)) errors.push('Invalid Phone');
-  if (linkedInProfile && !URL_PATTERN.test(linkedInProfile)) errors.push('Invalid LinkedIn Profile');
-  if (resumeUrl && !URL_PATTERN.test(resumeUrl)) errors.push('Invalid File URL');
-  if (fullName.length > 200) errors.push('Name exceeds 200 characters');
-  if (text(values.Type).length > 100) errors.push('Type exceeds 100 characters');
-  if (text(values['File Name']).length > 255) errors.push('File Name exceeds 255 characters');
-  if (text(values['File Type']).length > 100) errors.push('File Type exceeds 100 characters');
-  if (text(values.Status).length > 200) errors.push('Status exceeds 200 characters');
-  if (text(values.Feedback).length > 2000) errors.push('Feedback exceeds 2000 characters');
 
   return {
     rowNumber,
     errors,
     candidate: {
       registrationDate: registrationDate || parseDate(values['Created Time']),
-      applicationType: optionalText(values.Type) || optionalText(values['Form Name'])
-        || optionalText(values['Ad Name']),
-      externalLeadId: optionalText(values['Lead ID']).replace(/^l:/i, ''),
-      campaignName: optionalText(values['Campaign Name']),
-      adName: optionalText(values['Ad Name']),
-      formName: optionalText(values['Form Name']),
-      salesInterest,
-      salesExperience,
+      applicationType: (optionalText(values.Type) || optionalText(values['Form Name']) || optionalText(values['Ad Name'])).substring(0, 255),
+      externalLeadId: optionalText(values['Lead ID']).replace(/^l:/i, '').substring(0, 200),
+      campaignName: optionalText(values['Campaign Name']).substring(0, 255),
+      adName: optionalText(values['Ad Name']).substring(0, 255),
+      formName: optionalText(values['Form Name']).substring(0, 255),
+      salesInterest: salesInterest.substring(0, 500),
+      salesExperience: extractedExperience.substring(0, 200),
       phoneVerified: phoneVerifiedText ? phoneVerifiedText === 'true' : null,
-      fullName,
-      firstName,
-      lastName,
-      email,
-      mobile,
-      linkedInProfile,
-      source: normalizeSource(values.Hear || values.Platform),
-      resumeFileName: optionalText(values['File Name']),
-      resumeFileType: optionalText(values['File Type']),
+      fullName: fullName.substring(0, 200),
+      firstName: firstName.substring(0, 100),
+      lastName: lastName.substring(0, 100),
+      email: email.substring(0, 254),
+      mobile: mobile,
+      linkedInProfile: linkedInProfile === 'NA' ? '' : linkedInProfile,
+      source: normalizeSource(values.Source),
       resumeUrl,
-      referenceStatus: optionalText(values.Status),
-      feedback: optionalText(values.Feedback) || generatedFeedback,
+      referenceStatus: optionalText(values.Status).substring(0, 200),
+      feedback: (optionalText(values.Feedback) || generatedFeedback).substring(0, 2000),
       recruitmentStatus: recruitmentStatus || 'Registered',
       status: CANDIDATE_STATUSES.includes(recruitmentStatus) ? recruitmentStatus : 'Registered',
-      gender: detectGenderWithCache(firstName, genderCache),
+      gender,
+      experienceYears: parsedExperienceYears,
     },
   };
 };
 
 const validateLegacyRow = ({ rowNumber, values }, genderCache) => {
   const errors = [];
-  const requiredText = (header) => {
-    const value = text(values[header]);
-    if (!value) errors.push(`Missing ${header}`);
-    return value;
-  };
+  
+  const firstName = text(values['First Name']);
+  const lastName = text(values['Last Name']);
+  const email = text(values['Email']).toLowerCase();
+  const mobile = text(values['Mobile']);
+  
+  if (!firstName && !lastName) errors.push('Missing Name');
+  else if (!firstName) errors.push('Missing First Name');
+  else if (!lastName) errors.push('Missing Last Name');
+  if (!email) errors.push('Missing Email');
+  if (!mobile) errors.push('Missing Phone');
 
-  const firstName = requiredText('First Name');
-  const lastName = requiredText('Last Name');
-  const email = requiredText('Email').toLowerCase();
-  const mobile = requiredText('Mobile');
-  const address = requiredText('Address');
-  const qualification = requiredText('Qualification');
-  const source = requiredText('Source');
+  const address = text(values['Address']);
+  const qualification = text(values['Qualification']);
+  let source = text(values['Source']);
+  if (!source) source = 'NA';
+
   const dateOfBirth = parseDate(values['Date Of Birth']);
-  const experienceYears = parseNumber(values.Experience, null);
+  const experienceYears = parseNumber(values.Experience, 0);
   const currentCTC = parseNumber(values['Current CTC'], 0);
   const expectedCTC = parseNumber(values['Expected CTC'], 0);
   const skills = text(values.Skills).split(',').map((skill) => skill.trim()).filter(Boolean);
   const resumeUrl = text(values['Resume URL']);
 
   let gender = text(values.Gender);
-  if (!gender) gender = detectGenderWithCache(firstName, genderCache);
-
-  if (!text(values['Date Of Birth'])) errors.push('Missing Date Of Birth');
-  else if (!dateOfBirth || dateOfBirth >= new Date()) errors.push('Invalid Date Of Birth');
-  if (gender && !GENDERS.includes(gender)) errors.push('Invalid Gender');
-  if (firstName.length > 100) errors.push('First Name exceeds 100 characters');
-  if (lastName.length > 100) errors.push('Last Name exceeds 100 characters');
-  if (email && !EMAIL_PATTERN.test(email)) errors.push('Invalid Email');
-  if (email.length > 254) errors.push('Email exceeds 254 characters');
-  if (mobile && !MOBILE_PATTERN.test(mobile)) errors.push('Invalid Mobile');
-  if (address.length > 500) errors.push('Address exceeds 500 characters');
-  if (qualification.length > 200) errors.push('Qualification exceeds 200 characters');
-  if (experienceYears === null) errors.push(text(values.Experience) ? 'Invalid Experience' : 'Missing Experience');
-  else if (experienceYears < 0 || experienceYears > 80) errors.push('Invalid Experience');
-  if (currentCTC === null || currentCTC < 0) errors.push('Invalid Current CTC');
-  if (expectedCTC === null || expectedCTC < 0) errors.push('Invalid Expected CTC');
-  if (!skills.length) errors.push('Missing Skills');
-  if (skills.length > 100) errors.push('Skills exceeds 100 entries');
-  if (skills.some((skill) => skill.length > 100)) errors.push('A skill exceeds 100 characters');
-  if (resumeUrl && !URL_PATTERN.test(resumeUrl)) errors.push('Invalid Resume URL');
-  if (source && !CANDIDATE_SOURCES.includes(source)) errors.push('Invalid Source');
-  if (text(values['Current Company']).length > 200) {
-    errors.push('Current Company exceeds 200 characters');
-  }
-  if (text(values.Remarks).length > 2000) errors.push('Remarks exceeds 2000 characters');
+  if (!gender || !GENDERS.includes(gender)) gender = detectGenderWithCache(firstName, genderCache);
+  if (!GENDERS.includes(gender)) gender = 'Male';
 
   return {
     rowNumber,
     errors,
     candidate: {
-      firstName,
-      lastName,
+      firstName: firstName.substring(0, 100),
+      lastName: lastName.substring(0, 100) || '-',
       gender,
       dateOfBirth,
-      email,
+      email: email.substring(0, 254),
       mobile,
-      address,
-      qualification,
-      experienceYears,
-      currentCompany: text(values['Current Company']),
-      currentCTC,
-      expectedCTC,
-      skills,
+      address: address.substring(0, 500),
+      qualification: qualification.substring(0, 200),
+      experienceYears: Math.min(Math.max(experienceYears || 0, 0), 80),
+      currentCompany: text(values['Current Company']).substring(0, 200),
+      currentCTC: Math.max(currentCTC || 0, 0),
+      expectedCTC: Math.max(expectedCTC || 0, 0),
+      skills: skills.map(s => s.substring(0, 100)),
       resumeUrl,
-      source,
-      remarks: text(values.Remarks),
+      source: normalizeSource(source),
+      remarks: text(values.Remarks).substring(0, 2000),
       status: 'Registered',
     },
   };
@@ -407,10 +412,8 @@ const createExcelImportService = ({
     const parsedRows = await workbookParser(buffer, fileName);
     const validationErrors = [];
     const uniqueRows = [];
-    const seenEmails = new Set();
-    const seenMobiles = new Set();
-    let duplicateEmails = 0;
-    let duplicateMobiles = 0;
+    const seenCandidates = new Map();
+    let duplicateRows = 0;
 
     // Pre-fetch genders for all unique first names to avoid API rate limits
     const allFirstNames = parsedRows.map((row) => {
@@ -427,17 +430,14 @@ const createExcelImportService = ({
         validationErrors.push({ row: row.rowNumber, errors: validated.errors });
         return;
       }
-      const emailDuplicate = seenEmails.has(validated.candidate.email);
-      const mobileDuplicate = seenMobiles.has(validated.candidate.mobile);
-      if (emailDuplicate || mobileDuplicate) {
-        const errors = [];
-        if (emailDuplicate) { duplicateEmails += 1; errors.push('Duplicate Email'); }
-        if (mobileDuplicate) { duplicateMobiles += 1; errors.push('Duplicate Mobile'); }
-        validationErrors.push({ row: row.rowNumber, errors });
+      const duplicateKey = `${validated.candidate.email}|${validated.candidate.mobile}`;
+      if (seenCandidates.has(duplicateKey)) {
+        duplicateRows += 1;
+        const originalRow = seenCandidates.get(duplicateKey);
+        validationErrors.push({ row: row.rowNumber, errors: [`Duplicate of row ${originalRow}`] });
         return;
       }
-      seenEmails.add(validated.candidate.email);
-      seenMobiles.add(validated.candidate.mobile);
+      seenCandidates.set(duplicateKey, row.rowNumber);
       uniqueRows.push(validated);
     });
 
@@ -445,26 +445,21 @@ const createExcelImportService = ({
     let transactionResult = {
       imported: 0,
       skipped: parsedRows.length,
-      duplicateEmails: 0,
-      duplicateMobiles: 0,
+      duplicateRows: 0,
       validationErrors: [],
     };
     try {
       await session.withTransaction(async () => {
         const existingCandidates = await findExistingContacts(uniqueRows, session);
-        const existingEmails = new Set(existingCandidates.map((candidate) => candidate.email));
-        const existingMobiles = new Set(existingCandidates.map((candidate) => candidate.mobile));
+        const existingCandidateSet = new Set(existingCandidates.map((c) => `${c.email}|${c.mobile}`));
         const databaseValidationErrors = [];
-        let databaseDuplicateEmails = 0;
-        let databaseDuplicateMobiles = 0;
+        let dbDuplicateRows = 0;
         const importableRows = uniqueRows.filter((row) => {
-          const emailDuplicate = existingEmails.has(row.candidate.email);
-          const mobileDuplicate = existingMobiles.has(row.candidate.mobile);
-          if (!emailDuplicate && !mobileDuplicate) return true;
-          const errors = [];
-          if (emailDuplicate) { databaseDuplicateEmails += 1; errors.push('Duplicate Email'); }
-          if (mobileDuplicate) { databaseDuplicateMobiles += 1; errors.push('Duplicate Mobile'); }
-          databaseValidationErrors.push({ row: row.rowNumber, errors });
+          const duplicateKey = `${row.candidate.email}|${row.candidate.mobile}`;
+          if (!existingCandidateSet.has(duplicateKey)) return true;
+          
+          dbDuplicateRows += 1;
+          databaseValidationErrors.push({ row: row.rowNumber, errors: ['Duplicate found in database'] });
           return false;
         });
 
@@ -501,8 +496,7 @@ const createExcelImportService = ({
         transactionResult = {
           imported: importableRows.length,
           skipped: parsedRows.length - importableRows.length,
-          duplicateEmails: databaseDuplicateEmails,
-          duplicateMobiles: databaseDuplicateMobiles,
+          duplicateRows: dbDuplicateRows,
           validationErrors: databaseValidationErrors,
         };
       }, TRANSACTION_OPTIONS);
@@ -510,17 +504,27 @@ const createExcelImportService = ({
       await session.endSession();
     }
 
-    duplicateEmails += transactionResult.duplicateEmails;
-    duplicateMobiles += transactionResult.duplicateMobiles;
+    duplicateRows += transactionResult.duplicateRows;
     validationErrors.push(...transactionResult.validationErrors);
+    validationErrors.sort((a, b) => a.row - b.row);
+
+    await ImportHistory.create({
+      fileName,
+      importedBy: actor.id,
+      totalRows: parsedRows.length,
+      importedCount: transactionResult.imported,
+      skippedCount: transactionResult.skipped,
+      duplicateMobiles: duplicateRows,
+      validationErrors,
+    });
 
     return {
       totalRows: parsedRows.length,
       imported: transactionResult.imported,
       skipped: transactionResult.skipped,
-      duplicateEmails,
-      duplicateMobiles,
-      validationErrors: validationErrors.sort((a, b) => a.row - b.row),
+      duplicateEmails: 0,
+      duplicateMobiles: duplicateRows,
+      validationErrors,
     };
   };
 

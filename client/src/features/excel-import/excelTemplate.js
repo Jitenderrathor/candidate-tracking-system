@@ -17,7 +17,7 @@ export const downloadExcelTemplate = async () => {
     key: name,
     width: Math.max(14, name.length + 3),
   }));
-  worksheet.autoFilter = { from: 'A1', to: 'M1' };
+  worksheet.autoFilter = { from: 'A1', to: 'K1' };
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {

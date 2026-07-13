@@ -3,6 +3,7 @@ export const CANDIDATE_STATUSES = [
   'Under Consideration',
   'To Be Shortlisted',
   'Selected',
+  'DNP',
   'Rejected',
 ];
 export const CANDIDATE_SOURCES = [

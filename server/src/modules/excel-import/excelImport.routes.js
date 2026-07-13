@@ -24,4 +24,12 @@ router.post(
   asyncHandler(controller.importCandidates),
 );
 
+const historyController = require('./importHistory.controller');
+router.get(
+  '/history',
+  authenticate,
+  adminOnly,
+  historyController.listImportHistory
+);
+
 module.exports = router;

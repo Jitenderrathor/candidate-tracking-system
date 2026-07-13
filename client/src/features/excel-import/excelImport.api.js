@@ -13,3 +13,8 @@ export const importCandidateWorkbook = async ({ file, onProgress }) => {
   });
   return response.data;
 };
+
+export const listImportHistory = async (params) => {
+  const response = await apiClient.get('/excel/history', { params });
+  return response.data;
+};

@@ -14,7 +14,7 @@ export const SearchBox = forwardRef(function SearchBox(
       />
       <input
         aria-label="Search"
-        className="h-10 w-full rounded-lg border bg-white pl-9 pr-9 text-sm shadow-sm placeholder:text-slate-400"
+        className="h-10 w-full rounded-lg border bg-white pl-9 pr-9 text-sm shadow-sm placeholder:text-slate-400 [&::-webkit-search-cancel-button]:appearance-none"
         onChange={onChange}
         placeholder={placeholder}
         ref={ref}

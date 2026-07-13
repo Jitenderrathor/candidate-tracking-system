@@ -29,10 +29,6 @@ const candidateSchema = new mongoose.Schema({
     type: String,
     trim: true,
     default: '',
-    validate: {
-      validator: (value) => !value || /^https?:\/\/[^\s]+$/i.test(value),
-      message: 'LinkedIn profile URL is invalid',
-    },
   },
   resumeFileName: { type: String, trim: true, maxlength: 255, default: '' },
   resumeFileType: { type: String, trim: true, maxlength: 100, default: '' },
@@ -48,7 +44,6 @@ const candidateSchema = new mongoose.Schema({
   dateOfBirth: {
     type: Date,
     default: null,
-    validate: { validator: (value) => value < new Date(), message: 'Date of birth must be in the past' },
   },
   email: {
     type: String,
@@ -56,13 +51,11 @@ const candidateSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
     maxlength: 254,
-    match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email is invalid'],
   },
   mobile: {
     type: String,
     required: true,
     trim: true,
-    match: [/^\+?[1-9]\d{6,14}$/, 'Mobile is invalid'],
   },
   address: { type: String, trim: true, default: '', maxlength: 500 },
   qualification: { type: String, trim: true, default: '', maxlength: 200 },
@@ -78,12 +71,8 @@ const candidateSchema = new mongoose.Schema({
     type: String,
     trim: true,
     default: '',
-    validate: {
-      validator: (value) => !value || /^https?:\/\/[^\s]+$/i.test(value),
-      message: 'Resume URL is invalid',
-    },
   },
-  source: { type: String, required: true, enum: CANDIDATE_SOURCES },
+  source: { type: String, required: true },
   status: { type: String, enum: CANDIDATE_STATUSES, default: 'Registered' },
   remarks: { type: String, trim: true, default: '', maxlength: 2000 },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, immutable: true },

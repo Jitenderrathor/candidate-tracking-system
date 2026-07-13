@@ -64,7 +64,7 @@ export function CandidateListPage() {
   }, [page, search, filters]);
 
   const apiParams = useMemo(() => {
-    const values = { search, ...filters, page, limit: 10 };
+    const values = { search, ...filters, page, limit: 50 };
     return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ''));
   }, [filters, page, search]);
   

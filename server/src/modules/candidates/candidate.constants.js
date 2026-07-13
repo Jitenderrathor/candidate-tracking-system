@@ -14,6 +14,7 @@ const CANDIDATE_STATUSES = [
   'Under Consideration',
   'To Be Shortlisted',
   'Selected',
+  'DNP',
   'Rejected',
 ];
 

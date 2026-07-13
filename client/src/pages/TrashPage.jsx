@@ -26,7 +26,7 @@ export function TrashPage() {
   const search = searchParams.get('search') || filterDefaults.search;
   
   const apiParams = useMemo(() => {
-    const values = { search, page, limit: 10, sort: filterDefaults.sort };
+    const values = { search, page, limit: 50, sort: filterDefaults.sort };
     return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ''));
   }, [page, search]);
   
@@ -106,6 +106,19 @@ export function TrashPage() {
     },
   ];
 
+  // Group by Date
+  const groupedTrash = useMemo(() => {
+    if (!query.data?.candidates) return {};
+    return query.data.candidates.reduce((acc, candidate) => {
+      const date = candidate.deletedAt ? new Date(candidate.deletedAt).toLocaleDateString(undefined, {
+        day: '2-digit', month: 'short', year: 'numeric'
+      }) : 'Unknown Date';
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(candidate);
+      return acc;
+    }, {});
+  }, [query.data?.candidates]);
+
   return (
     <div className="space-y-6">
       <Button asChild variant="ghost">
@@ -159,14 +172,24 @@ export function TrashPage() {
           description={query.error.message}
           title="Unable to load recycle bin"
         />
+      ) : !query.data.candidates?.length ? (
+        <Card className="flex flex-col items-center justify-center py-16 text-center">
+          <h3 className="text-lg font-medium text-slate-900">Recycle bin empty</h3>
+          <p className="text-slate-500">The recycle bin is currently empty.</p>
+        </Card>
       ) : (
-        <>
-          <Table
-            columns={columns}
-            data={query.data.candidates}
-            emptyMessage="The recycle bin is currently empty."
-            getRowKey={(candidate) => candidate.candidateId}
-          />
+        <div className="space-y-8">
+          {Object.entries(groupedTrash).map(([date, candidates]) => (
+            <div key={date} className="space-y-3">
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">{date}</h2>
+              <Table
+                columns={columns}
+                data={candidates}
+                emptyMessage="No items for this date."
+                getRowKey={(candidate) => candidate.candidateId}
+              />
+            </div>
+          ))}
           <Pagination
             currentPage={query.data.meta.currentPage}
             onPageChange={(nextPage) => updateParams({ page: String(nextPage) })}
@@ -175,7 +198,7 @@ export function TrashPage() {
           <p className="text-sm text-slate-500">
             {query.data.meta.total} candidate{query.data.meta.total === 1 ? '' : 's'} in recycle bin
           </p>
-        </>
+        </div>
       )}
     </div>
   );

@@ -165,13 +165,20 @@ export function CandidateForm({ candidate, isSubmitting, onCancel, onSubmit, sub
         description="Candidate source and recruiter notes."
         title="Recruitment Information"
       >
-        <Select
-          error={errors.source?.message}
-          label="Source"
-          options={SOURCE_OPTIONS}
-          required
-          {...register('source')}
-        />
+        <div>
+          <Input
+            error={errors.source?.message}
+            label="Source"
+            list="source-options"
+            required
+            {...register('source')}
+          />
+          <datalist id="source-options">
+            {SOURCE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value} />
+            ))}
+          </datalist>
+        </div>
         <div className="md:col-span-2">
           <FormTextarea error={errors.remarks?.message} label="Remarks" {...register('remarks')} />
         </div>

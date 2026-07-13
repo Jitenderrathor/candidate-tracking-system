@@ -1,17 +1,15 @@
 export const EXCEL_HEADERS = [
   'Date',
-  'Type',
   'Name',
   'Email',
   'Phone',
-  'LinkedIn Profile',
-  'Hear',
-  'File Name',
-  'File Type',
-  'File URL',
+  'Source',
+  'Gender',
+  'Resume',
   'Status',
   'Feedback',
-  '#REF!',
+  'LinkedIn',
+  'Experience',
 ];
 
 export const XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';

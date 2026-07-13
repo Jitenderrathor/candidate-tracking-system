@@ -3,6 +3,7 @@ export const STATUS_COLORS = {
   'Under Consideration': '#d97706',
   'To Be Shortlisted': '#7c3aed',
   Selected: '#059669',
+  DNP: '#f59e0b',
   Rejected: '#dc2626',
 };
 
@@ -13,5 +14,6 @@ export const STATUS_ORDER = [
   'Under Consideration',
   'To Be Shortlisted',
   'Selected',
+  'DNP',
   'Rejected',
 ];

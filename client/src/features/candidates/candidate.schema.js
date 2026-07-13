@@ -34,7 +34,7 @@ export const candidateSchema = z.object({
       'A maximum of 100 skills is allowed',
     ),
   resumeUrl: z.union([z.literal(''), z.string().url('Enter a valid resume URL')]),
-  source: z.enum(CANDIDATE_SOURCES, { errorMap: () => ({ message: 'Select a source' }) }),
+  source: z.string().trim().min(1, 'Source is required'),
   remarks: z.string().trim().max(2000).optional(),
 });
 

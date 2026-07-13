@@ -41,6 +41,9 @@ const ReportsPage = lazy(() =>
 const TrashPage = lazy(() =>
   import('@/pages/TrashPage').then((module) => ({ default: module.TrashPage })),
 );
+const ImportHistoryPage = lazy(() =>
+  import('@/pages/ImportHistoryPage').then((module) => ({ default: module.ImportHistoryPage })),
+);
 
 export function AppRouter() {
   return (
@@ -127,6 +130,14 @@ export function AppRouter() {
               </Suspense>
             }
             path={ROUTES.EXCEL_IMPORT}
+          />
+          <Route
+            element={
+              <Suspense fallback={<LoadingPage />}>
+                <ImportHistoryPage />
+              </Suspense>
+            }
+            path="/import-history"
           />
           <Route
             element={
