@@ -97,17 +97,16 @@ const sendPasswordResetOTP = async (to, otp) => {
   }
 };
 
-const sendBulkEmails = async (candidates, template, { cc, bcc } = {}) => {
+const sendBulkEmails = async (candidates, template, { cc } = {}) => {
   const transporter = await getTransporter();
   if (!transporter) {
     console.error('Failed to send bulk emails because SMTP is not configured.');
     return;
   }
 
-  const { from, defaultCc, defaultBcc } = await getSettings();
+  const { from, defaultCc } = await getSettings();
 
   const finalCc = [cc, defaultCc].filter(Boolean).join(', ');
-  const finalBcc = [bcc, defaultBcc].filter(Boolean).join(', ');
 
   // Process sequentially to avoid slamming the SMTP server
   for (const candidate of candidates) {
@@ -126,7 +125,6 @@ const sendBulkEmails = async (candidates, template, { cc, bcc } = {}) => {
         from,
         to: candidate.email,
         cc: finalCc,
-        bcc: finalBcc,
         subject,
         html,
       });

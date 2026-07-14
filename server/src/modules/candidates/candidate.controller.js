@@ -67,7 +67,7 @@ const exportCandidates = async (req, res) => {
 };
 
 const bulkEmail = async (req, res) => {
-  const { candidateIds, statuses, templateId, cc, bcc } = req.body;
+  const { candidateIds, statuses, templateId, cc } = req.body;
   if ((!candidateIds || !candidateIds.length) && (!statuses || !statuses.length)) {
     throw new AppError('No candidates or statuses selected', 400);
   }
@@ -89,7 +89,7 @@ const bulkEmail = async (req, res) => {
   }
   
   // Fire and forget so we don't block the request if there are hundreds of emails
-  emailService.sendBulkEmails(candidates, template, { cc, bcc }).catch(console.error);
+  emailService.sendBulkEmails(candidates, template, { cc }).catch(console.error);
 
   return success(res, { message: `Bulk email process started for ${candidates.length} candidates` });
 };

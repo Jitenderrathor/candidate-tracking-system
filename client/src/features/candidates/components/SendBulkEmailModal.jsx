@@ -10,7 +10,6 @@ export function SendBulkEmailModal({ isOpen, onClose, candidateIds, onSuccess })
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [cc, setCc] = useState('');
-  const [bcc, setBcc] = useState('');
 
   const query = useQuery({
     queryKey: ['email-templates'],
@@ -38,8 +37,7 @@ export function SendBulkEmailModal({ isOpen, onClose, candidateIds, onSuccess })
       candidateIds: targetType === 'selected' ? candidateIds : undefined, 
       statuses: targetType === 'status' ? selectedStatuses : undefined,
       templateId: selectedTemplateId, 
-      cc, 
-      bcc 
+      cc
     });
   };
 
@@ -151,12 +149,6 @@ export function SendBulkEmailModal({ isOpen, onClose, candidateIds, onSuccess })
           placeholder="comma separated emails"
           value={cc}
           onChange={(e) => setCc(e.target.value)}
-        />
-        <Input
-          label="BCC (Optional)"
-          placeholder="comma separated emails"
-          value={bcc}
-          onChange={(e) => setBcc(e.target.value)}
         />
       </div>
     </Modal>
