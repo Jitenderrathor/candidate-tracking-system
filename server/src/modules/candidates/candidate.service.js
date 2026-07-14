@@ -2,14 +2,14 @@ const AppError = require('../../common/errors/AppError');
 const { documentLookup, escapeRegex } = require('../../common/utils/mongoQuery');
 const Candidate = require('./candidate.model');
 const CandidateCounter = require('./candidateCounter.model');
+const ExcelJS = require('exceljs');
 
 const EDITABLE_FIELDS = [
-  'firstName', 'lastName', 'gender', 'dateOfBirth', 'email', 'mobile', 'address',
-  'qualification', 'experienceYears', 'currentCompany', 'currentCTC', 'expectedCTC',
-  'skills', 'resumeUrl', 'source', 'remarks',
+  'fullName', 'gender', 'email', 'mobile',
+  'experienceYears', 'resumeUrl', 'linkedInProfile', 'source', 'remarks',
 ];
 const SORTABLE_FIELDS = new Set([
-  'candidateId', 'firstName', 'lastName', 'dateOfBirth', 'experienceYears',
+  'candidateId', 'fullName', 'experienceYears',
   'currentCTC', 'expectedCTC', 'status', 'source', 'createdAt', 'updatedAt', 'deletedAt',
 ]);
 
@@ -37,7 +37,7 @@ const buildFilter = (query, isDeleted = false) => {
   const filter = { isDeleted };
   if (query.search) {
     const expression = new RegExp(escapeRegex(query.search), 'i');
-    filter.$or = ['candidateId', 'firstName', 'lastName', 'fullName', 'email', 'mobile']
+    filter.$or = ['candidateId', 'fullName', 'email', 'mobile']
       .map((field) => ({ [field]: expression }));
   }
   if (query.status) filter.status = query.status;
@@ -113,6 +113,14 @@ const createCandidateService = ({ CandidateModel = Candidate, CounterModel = Can
     });
     if (!candidate) throw new AppError('Candidate not found', 404, { code: 'CANDIDATE_NOT_FOUND' });
     return candidate;
+  };
+
+  const getByIds = async (ids) => {
+    return CandidateModel.find({ candidateId: { $in: ids }, isDeleted: false }).lean();
+  };
+
+  const getByStatuses = async (statuses) => {
+    return CandidateModel.find({ status: { $in: statuses }, isDeleted: false }).lean();
   };
 
   const update = async (id, input, userId) => {
@@ -207,7 +215,43 @@ const createCandidateService = ({ CandidateModel = Candidate, CounterModel = Can
     return { deletedCount: result.deletedCount };
   };
 
-  return { create, getById, list, remove, update, listTrash, restore, bulkDelete, bulkRestore, hardDeleteExpiredCandidates };
+  const exportData = async (query) => {
+    const filter = buildFilter(query);
+    const candidates = await CandidateModel.find(filter)
+      .sort(parseSort(query.sort))
+      .lean();
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Candidates');
+
+    worksheet.columns = [
+      { header: 'Candidate ID', key: 'candidateId', width: 15 },
+      { header: 'Full Name', key: 'fullName', width: 25 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Mobile', key: 'mobile', width: 15 },
+      { header: 'Gender', key: 'gender', width: 10 },
+      { header: 'Experience (Years)', key: 'experienceYears', width: 15 },
+      { header: 'Resume URL', key: 'resumeUrl', width: 30 },
+      { header: 'LinkedIn URL', key: 'linkedInProfile', width: 30 },
+      { header: 'Source', key: 'source', width: 15 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Registration Date', key: 'createdAt', width: 20 },
+    ];
+
+    candidates.forEach((c) => {
+      worksheet.addRow({
+        ...c,
+        createdAt: c.createdAt ? new Date(c.createdAt).toISOString().split('T')[0] : '',
+      });
+    });
+
+    worksheet.getRow(1).font = { bold: true };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer;
+  };
+
+  return { create, getById, getByIds, getByStatuses, list, remove, update, listTrash, restore, bulkDelete, bulkRestore, hardDeleteExpiredCandidates, exportData };
 };
 
 module.exports = Object.assign(createCandidateService(), {

@@ -1,17 +1,20 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Eye, Filter, Pencil, Plus, RefreshCw, Workflow, Trash2 } from 'lucide-react';
+import { Download, Eye, Filter, Pencil, Plus, RefreshCw, Workflow, Trash2, FileDown, Mail } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Button, Card, EmptyState, Pagination, SearchBox, Table } from '@/components/common';
+import { Button, Card, EmptyState, Pagination, SearchBox, Table, Select, Modal } from '@/components/common';
 import { ROLES } from '@/constants/auth';
 import { ROUTES } from '@/constants/routes';
-import { listCandidates, bulkDeleteCandidates } from '@/features/candidates/candidate.api';
+import { listCandidates, bulkDeleteCandidates, exportCandidates, updateCandidateStatus } from '@/features/candidates/candidate.api';
+import { CANDIDATE_STATUSES } from '@/features/candidates/candidate.constants';
 import { CandidateFilters } from '@/features/candidates/components/CandidateFilters';
 import { CandidateListSkeleton } from '@/features/candidates/components/CandidateListSkeleton';
 import { StatusUpdateModal } from '@/features/candidates/components/StatusUpdateModal';
+import { SendBulkEmailModal } from '@/features/candidates/components/SendBulkEmailModal';
 import { StatusBadge } from '@/features/public-dashboard/components/StatusBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { AddCandidatePage } from '@/pages/AddCandidatePage';
+import { formatExperience } from '@/utils/formatters';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   day: '2-digit',
@@ -21,7 +24,6 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 const filterDefaults = {
   status: '',
   source: '',
-  qualification: '',
   minExperience: '',
   maxExperience: '',
   createdFrom: '',
@@ -38,6 +40,9 @@ export function CandidateListPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [candidateForStatus, setCandidateForStatus] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [bulkActionConfirm, setBulkActionConfirm] = useState(null);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const mode = searchParams.get('mode');
 
   useEffect(() => {
@@ -61,6 +66,7 @@ export function CandidateListPage() {
   // Clear selection when search/filters/page changes
   useEffect(() => {
     setSelectedIds(new Set());
+    setIsSelectMode(false);
   }, [page, search, filters]);
 
   const apiParams = useMemo(() => {
@@ -78,8 +84,37 @@ export function CandidateListPage() {
     mutationFn: (ids) => bulkDeleteCandidates(ids),
     onSuccess: () => {
       setSelectedIds(new Set());
+      setIsSelectMode(false);
       queryClient.invalidateQueries({ queryKey: ['candidates'] });
       queryClient.invalidateQueries({ queryKey: ['internal-dashboard'] });
+    },
+  });
+
+  const bulkStatusMutation = useMutation({
+    mutationFn: async (status) => {
+      const promises = Array.from(selectedIds).map((id) =>
+        updateCandidateStatus({ id, status, remarks: 'Bulk status update' })
+      );
+      return Promise.all(promises);
+    },
+    onSuccess: () => {
+      setSelectedIds(new Set());
+      setIsSelectMode(false);
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+    },
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: () => exportCandidates(apiParams),
+    onSuccess: (blob) => {
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'candidates.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
     },
   });
 
@@ -117,51 +152,67 @@ export function CandidateListPage() {
   };
 
   const columns = [
-    {
-      key: 'select',
-      header: (
-        <input
-          type="checkbox"
-          checked={isAllSelected}
-          onChange={toggleSelectAll}
-          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
-          aria-label="Select all"
-        />
-      ),
-      cellClassName: 'w-10 text-center',
-      render: (candidate) => (
-        <input
-          type="checkbox"
-          checked={selectedIds.has(candidate.candidateId)}
-          onChange={() => toggleSelectRow(candidate.candidateId)}
-          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
-          aria-label={`Select ${candidate.firstName}`}
-        />
-      ),
-    },
-    {
-      key: 'registrationDate',
-      header: 'Registration Date',
-      cellClassName: 'whitespace-nowrap',
-      render: (candidate) => dateFormatter.format(
-        new Date(candidate.registrationDate || candidate.createdAt),
-      ),
-    },
+    ...(isSelectMode
+      ? [
+          {
+            key: 'select',
+            header: (
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                aria-label="Select all"
+              />
+            ),
+            cellClassName: 'w-10 text-center',
+            render: (candidate) => (
+              <input
+                type="checkbox"
+                checked={selectedIds.has(candidate.candidateId)}
+                onChange={() => toggleSelectRow(candidate.candidateId)}
+                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                aria-label={`Select ${candidate.fullName}`}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       key: 'name',
-      header: 'Full Name',
+      header: 'Name',
       cellClassName: 'min-w-40',
-      render: (candidate) => candidate.fullName || `${candidate.firstName} ${candidate.lastName}`,
+      render: (candidate) => candidate.fullName,
     },
     { key: 'email', header: 'Email', cellClassName: 'min-w-48' },
     { key: 'mobile', header: 'Mobile', cellClassName: 'whitespace-nowrap' },
-    { key: 'source', header: 'Source', cellClassName: 'whitespace-nowrap' },
+    { key: 'gender', header: 'Gender', cellClassName: 'whitespace-nowrap' },
+    {
+      key: 'experienceYears',
+      header: 'Experience',
+      render: (c) => formatExperience(c.experienceYears),
+    },
+    {
+      key: 'linkedInProfile',
+      header: 'LinkedIn',
+      render: (c) =>
+        c.linkedInProfile ? (
+          <a
+            href={c.linkedInProfile}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-600 hover:underline"
+          >
+            Profile
+          </a>
+        ) : (
+          '—'
+        ),
+    },
     {
       key: 'status',
       header: 'Status',
-      render: (candidate) => (
-        <StatusBadge status={candidate.recruitmentStatus || candidate.status} />
-      ),
+      render: (c) => <StatusBadge status={c.status} />,
     },
     {
       key: 'actions',
@@ -170,7 +221,7 @@ export function CandidateListPage() {
         const hasResume = Boolean(candidate.resumeUrl);
         return (
           <div className="flex items-center gap-1">
-          <Button asChild aria-label={`View ${candidate.firstName}`} size="icon" variant="ghost">
+          <Button asChild aria-label={`View ${candidate.fullName}`} size="icon" variant="ghost">
             <Link to={detailPath(candidate.candidateId)}>
               <Eye className="size-4" />
             </Link>
@@ -178,7 +229,7 @@ export function CandidateListPage() {
           {hasResume && (
             <Button
               asChild
-              aria-label={`Download resume for ${candidate.fullName || candidate.firstName}`}
+              aria-label={`Download resume for ${candidate.fullName}`}
               size="icon"
               variant="ghost"
             >
@@ -193,14 +244,14 @@ export function CandidateListPage() {
             </Button>
           )}
           {user?.role === ROLES.ADMIN && (
-            <Button asChild aria-label={`Edit ${candidate.firstName}`} size="icon" variant="ghost">
+            <Button asChild aria-label={`Edit ${candidate.fullName}`} size="icon" variant="ghost">
               <Link to={`${detailPath(candidate.candidateId)}?mode=edit`}>
                 <Pencil className="size-4" />
               </Link>
             </Button>
           )}
           <Button
-            aria-label={`Update status for ${candidate.firstName}`}
+            aria-label={`Update status for ${candidate.fullName}`}
             onClick={() => setCandidateForStatus(candidate)}
             size="icon"
             variant="ghost"
@@ -223,22 +274,82 @@ export function CandidateListPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedIds.size > 0 && user?.role === ROLES.ADMIN && (
-            <Button
-              variant="danger"
-              disabled={deleteSelectedMutation.isPending}
-              onClick={() => {
-                if (window.confirm(`Are you sure you want to delete ${selectedIds.size} candidates?`)) {
-                  deleteSelectedMutation.mutate(Array.from(selectedIds));
-                }
-              }}
-            >
-              <Trash2 className="size-4 mr-1" /> Delete Selected ({selectedIds.size})
-            </Button>
+          {isSelectMode ? (
+            <>
+              {selectedIds.size > 0 && user?.role === ROLES.ADMIN && (
+                <div className="flex items-center gap-2">
+                  <Select
+                    aria-label="Bulk Actions"
+                    className="w-48"
+                    placeholder={`Bulk Actions (${selectedIds.size})`}
+                    disabled={deleteSelectedMutation.isPending || bulkStatusMutation.isPending}
+                    value=""
+                    onChange={(e) => {
+                      const action = e.target.value;
+                      if (!action) return;
+                      if (action === 'delete') {
+                        setBulkActionConfirm({
+                          type: 'delete',
+                          message: `Are you sure you want to delete ${selectedIds.size} candidates?`,
+                        });
+                      } else if (action === 'email') {
+                        setIsEmailModalOpen(true);
+                      } else if (action.startsWith('status:')) {
+                        const status = action.split(':')[1];
+                        setBulkActionConfirm({
+                          type: 'status',
+                          payload: status,
+                          message: `Change status to "${status}" for ${selectedIds.size} candidates?`,
+                        });
+                      }
+                      e.target.value = '';
+                    }}
+                    options={[
+                      { label: 'Send Bulk Email', value: 'email' },
+                      { label: 'Delete Selected', value: 'delete' },
+                      ...CANDIDATE_STATUSES.map((s) => ({
+                        label: `Mark as ${s}`,
+                        value: `status:${s}`,
+                      })),
+                    ]}
+                  />
+                </div>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsSelectMode(false);
+                  setSelectedIds(new Set());
+                }}
+              >
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              {user?.role === ROLES.ADMIN && (
+                <Button variant="outline" onClick={() => setIsSelectMode(true)}>
+                  Select Multiple
+                </Button>
+              )}
+              {user?.role === ROLES.ADMIN && (
+                <Button variant="outline" onClick={() => setIsEmailModalOpen(true)}>
+                  <Mail className="size-4" /> Bulk Email
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                disabled={exportMutation.isPending || candidatesData.length === 0}
+                onClick={() => exportMutation.mutate()}
+              >
+                <FileDown className={exportMutation.isPending ? 'size-4 animate-bounce' : 'size-4'} />{' '}
+                Export Excel
+              </Button>
+              <Button onClick={() => setSearchParams({ mode: 'add' })}>
+                <Plus className="size-4" /> Add Candidate
+              </Button>
+            </>
           )}
-          <Button onClick={() => setSearchParams({ mode: 'add' })}>
-            <Plus className="size-4" /> Add Candidate
-          </Button>
         </div>
       </header>
       <Card className="space-y-4">
@@ -304,6 +415,48 @@ export function CandidateListPage() {
           isOpen
           onClose={() => setCandidateForStatus(null)}
           role={user?.role}
+        />
+      )}
+      {bulkActionConfirm && (
+        <Modal
+          title="Confirm Action"
+          isOpen={true}
+          onClose={() => setBulkActionConfirm(null)}
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setBulkActionConfirm(null)}>Cancel</Button>
+              <Button 
+                variant={bulkActionConfirm.type === 'delete' ? 'danger' : 'primary'}
+                disabled={deleteSelectedMutation.isPending || bulkStatusMutation.isPending}
+                onClick={() => {
+                  if (bulkActionConfirm.type === 'delete') {
+                    deleteSelectedMutation.mutate(Array.from(selectedIds), {
+                      onSettled: () => setBulkActionConfirm(null)
+                    });
+                  } else {
+                    bulkStatusMutation.mutate(bulkActionConfirm.payload, {
+                      onSettled: () => setBulkActionConfirm(null)
+                    });
+                  }
+                }}
+              >
+                {deleteSelectedMutation.isPending || bulkStatusMutation.isPending ? 'Processing...' : 'Confirm'}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-slate-600">{bulkActionConfirm.message}</p>
+        </Modal>
+      )}
+      {isEmailModalOpen && (
+        <SendBulkEmailModal
+          isOpen={isEmailModalOpen}
+          onClose={() => setIsEmailModalOpen(false)}
+          candidateIds={Array.from(selectedIds)}
+          onSuccess={() => {
+            setSelectedIds(new Set());
+            setIsSelectMode(false);
+          }}
         />
       )}
     </div>

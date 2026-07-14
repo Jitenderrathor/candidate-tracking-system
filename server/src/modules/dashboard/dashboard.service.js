@@ -168,9 +168,7 @@ const recentCandidatesPipeline = () => [
     $project: {
       _id: 0,
       candidateId: 1,
-      name: {
-        $trim: { input: { $concat: ['$firstName', ' ', '$lastName'] } },
-      },
+      name: '$fullName',
       source: 1,
       status: 1,
       createdAt: 1,

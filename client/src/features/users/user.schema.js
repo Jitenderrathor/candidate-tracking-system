@@ -3,7 +3,7 @@ import { z } from 'zod';
 const profileSchema = z.object({
   fullName: z.string().trim().min(1, 'Full name is required').max(100),
   email: z.string().trim().min(1, 'Email is required').email('Enter a valid email address'),
-  role: z.enum(['Admin', 'User'], { errorMap: () => ({ message: 'Select a role' }) }),
+  role: z.enum(['Super Admin', 'Admin', 'User'], { errorMap: () => ({ message: 'Select a role' }) }),
 });
 
 const strongPassword = z

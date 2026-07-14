@@ -21,6 +21,10 @@ router.post('/trash/bulk-delete', adminOnly, asyncHandler(controller.bulkDelete)
 router.post('/trash/bulk-restore', adminOnly, asyncHandler(controller.bulkRestore));
 router.post('/trash/:id/restore', adminOnly, candidateIdValidation, validateRequest, asyncHandler(controller.restoreCandidate));
 
+router.get('/export', userOrAdmin, listCandidatesValidation, validateRequest, asyncHandler(controller.exportCandidates));
+
+router.post('/bulk-email', userOrAdmin, asyncHandler(controller.bulkEmail));
+
 router.post('/', userOrAdmin, createCandidateValidation, validateRequest, asyncHandler(controller.createCandidate));
 router.get('/', userOrAdmin, listCandidatesValidation, validateRequest, asyncHandler(controller.listCandidates));
 router.get('/:id', userOrAdmin, candidateIdValidation, validateRequest, asyncHandler(controller.getCandidate));

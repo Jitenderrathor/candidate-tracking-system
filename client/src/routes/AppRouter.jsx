@@ -29,9 +29,7 @@ const CandidateDetailsPage = lazy(() =>
     default: module.CandidateDetailsPage,
   })),
 );
-const UserListPage = lazy(() =>
-  import('@/pages/UserListPage').then((module) => ({ default: module.UserListPage })),
-);
+
 const ExcelImportPage = lazy(() =>
   import('@/pages/ExcelImportPage').then((module) => ({ default: module.ExcelImportPage })),
 );
@@ -43,6 +41,12 @@ const TrashPage = lazy(() =>
 );
 const ImportHistoryPage = lazy(() =>
   import('@/pages/ImportHistoryPage').then((module) => ({ default: module.ImportHistoryPage })),
+);
+const EmailTemplatesPage = lazy(() =>
+  import('@/pages/EmailTemplatesPage').then((module) => ({ default: module.EmailTemplatesPage })),
+);
+const SettingsLayout = lazy(() =>
+  import('@/pages/Settings/SettingsLayout').then((module) => ({ default: module.SettingsLayout })),
 );
 
 export function AppRouter() {
@@ -118,14 +122,6 @@ export function AppRouter() {
           <Route
             element={
               <Suspense fallback={<LoadingPage />}>
-                <UserListPage />
-              </Suspense>
-            }
-            path={ROUTES.USERS}
-          />
-          <Route
-            element={
-              <Suspense fallback={<LoadingPage />}>
                 <ExcelImportPage />
               </Suspense>
             }
@@ -142,10 +138,26 @@ export function AppRouter() {
           <Route
             element={
               <Suspense fallback={<LoadingPage />}>
+                <EmailTemplatesPage />
+              </Suspense>
+            }
+            path={ROUTES.EMAIL_TEMPLATES}
+          />
+          <Route
+            element={
+              <Suspense fallback={<LoadingPage />}>
                 <TrashPage />
               </Suspense>
             }
             path={ROUTES.TRASH}
+          />
+          <Route
+            element={
+              <Suspense fallback={<LoadingPage />}>
+                <SettingsLayout />
+              </Suspense>
+            }
+            path={ROUTES.SETTINGS}
           />
         </Route>
       </Route>

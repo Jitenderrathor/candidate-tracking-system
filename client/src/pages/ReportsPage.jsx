@@ -17,6 +17,7 @@ import { StatusPieChart } from '@/features/public-dashboard/components/StatusPie
 import { INITIAL_REPORT_FILTERS, REPORT_SORT_OPTIONS } from '@/features/reports/report.constants';
 import { ReportFilters } from '@/features/reports/components/ReportFilters';
 import { ReportsSkeleton } from '@/features/reports/components/ReportsSkeleton';
+import { formatExperience } from '@/utils/formatters';
 import { useReportQueries } from '@/features/reports/useReportQueries';
 
 const numberFormatter = new Intl.NumberFormat();
@@ -133,7 +134,7 @@ export function ReportsPage() {
     {
       key: 'experienceYears',
       header: 'Experience',
-      render: (candidate) => `${candidate.experienceYears} yrs`,
+      render: (candidate) => formatExperience(candidate.experienceYears),
     },
     {
       key: 'currentCTC',

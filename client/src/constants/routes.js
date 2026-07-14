@@ -6,10 +6,12 @@ export const ROUTES = Object.freeze({
   DASHBOARD: '/dashboard',
   CANDIDATES: '/candidates',
   CANDIDATE_DETAILS: '/candidates/:id',
-  USERS: '/users',
+  USERS: '/settings?tab=users',
   EXCEL_IMPORT: '/excel-import',
   REPORTS: '/reports',
   PUBLIC_DASHBOARD: '/public-dashboard',
   TRASH: '/trash',
+  EMAIL_TEMPLATES: '/email-templates',
+  SETTINGS: '/settings',
   NOT_FOUND: '/404',
 });

@@ -33,7 +33,7 @@ export function DeleteCandidateModal({ candidate, isOpen, onClose, onDeleted }) 
       }
       isOpen={isOpen}
       onClose={onClose}
-      title={`Delete ${candidate?.firstName || 'candidate'}?`}
+      title={`Delete ${candidate?.fullName || 'candidate'}?`}
     >
       <p className="text-sm text-slate-600">
         Candidate <strong>{candidate?.candidateId}</strong> will no longer appear in candidate

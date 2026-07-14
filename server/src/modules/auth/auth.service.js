@@ -86,4 +86,14 @@ const getProfile = async (userId) => {
   return publicUser(user);
 };
 
-module.exports = { changePassword, forgotPassword, getProfile, login, resetPassword };
+const updateProfile = async (userId, updateData) => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError('User not found', 404, { code: 'USER_NOT_FOUND' });
+  
+  if (updateData.name !== undefined) user.name = updateData.name;
+  
+  await user.save();
+  return publicUser(user);
+};
+
+module.exports = { changePassword, forgotPassword, getProfile, login, resetPassword, updateProfile };

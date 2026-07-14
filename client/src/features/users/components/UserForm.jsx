@@ -4,14 +4,22 @@ import { useForm } from 'react-hook-form';
 import { Button, Card, Input, Loader, Select } from '@/components/common';
 import { PasswordField } from '@/features/auth/components/PasswordField';
 import { PasswordStrength } from '@/features/auth/components/PasswordStrength';
+import { useAuth } from '@/hooks/useAuth';
+import { ROLES } from '@/constants/auth';
 import { addUserSchema, editUserSchema, userDefaults } from '@/features/users/user.schema';
 
-const roleOptions = [
-  { label: 'Admin', value: 'Admin' },
-  { label: 'User', value: 'User' },
+const ALL_ROLE_OPTIONS = [
+  { label: 'Super Admin', value: ROLES.SUPER_ADMIN },
+  { label: 'Admin', value: ROLES.ADMIN },
+  { label: 'User', value: ROLES.USER },
 ];
 
 export function UserForm({ isEdit = false, isSubmitting, onCancel, onSubmit, user }) {
+  const { user: currentUser } = useAuth();
+  
+  const roleOptions = currentUser?.role === ROLES.SUPER_ADMIN 
+    ? ALL_ROLE_OPTIONS 
+    : ALL_ROLE_OPTIONS.filter(r => r.value === ROLES.USER);
   const {
     formState: { errors },
     handleSubmit,

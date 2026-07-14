@@ -8,6 +8,7 @@ const {
   forgotPasswordValidation,
   loginValidation,
   resetPasswordValidation,
+  updateProfileValidation,
 } = require('./auth.validation');
 
 const router = express.Router();
@@ -34,5 +35,6 @@ router.post(
   asyncHandler(controller.resetPassword),
 );
 router.get('/profile', authenticate, userOrAdmin, asyncHandler(controller.profile));
+router.put('/profile', authenticate, userOrAdmin, updateProfileValidation, validateRequest, asyncHandler(controller.updateProfile));
 
 module.exports = router;

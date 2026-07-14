@@ -5,6 +5,14 @@ export const listCandidates = async (params) => {
   return { candidates: response.data.data.candidates, meta: response.data.meta };
 };
 
+export const exportCandidates = async (params) => {
+  const response = await apiClient.get('/candidates/export', {
+    params,
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
 export const getCandidate = async (id) => {
   const response = await apiClient.get(`/candidates/${id}`);
   return response.data.data.candidate;

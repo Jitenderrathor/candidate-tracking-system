@@ -24,7 +24,6 @@ export function CandidateFilters({ filters, onApply, onReset }) {
         options={SOURCE_OPTIONS}
         value={draft.source}
       />
-      <Input label="Qualification" onChange={update('qualification')} value={draft.qualification} />
       <Select label="Sort By" onChange={update('sort')} options={SORT_OPTIONS} value={draft.sort} />
       <Input
         label="Minimum Experience"
@@ -59,7 +58,6 @@ export function CandidateFilters({ filters, onApply, onReset }) {
               ...filters,
               status: '',
               source: '',
-              qualification: '',
               minExperience: '',
               maxExperience: '',
               createdFrom: '',

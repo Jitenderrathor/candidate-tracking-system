@@ -45,7 +45,8 @@ const authorize = (...roles) => (req, _res, next) => {
   return next();
 };
 
-const adminOnly = authorize('Admin');
-const userOrAdmin = authorize('User', 'Admin');
+const superAdminOnly = authorize('Super Admin');
+const adminOnly = authorize('Super Admin', 'Admin');
+const userOrAdmin = authorize('Super Admin', 'Admin', 'User');
 
-module.exports = { adminOnly, authenticate, authorize, userOrAdmin };
+module.exports = { adminOnly, authenticate, authorize, superAdminOnly, userOrAdmin };

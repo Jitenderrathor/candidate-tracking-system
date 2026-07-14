@@ -131,7 +131,7 @@ export function UserListPage() {
           <div className="flex items-center gap-1">
             <Button
               aria-label={`Edit ${user.fullName}`}
-              onClick={() => setSearchParams({ mode: 'edit', id: user._id })}
+              onClick={() => updateParams({ mode: 'edit', id: user._id })}
               size="icon"
               variant="ghost"
             >
@@ -174,7 +174,7 @@ export function UserListPage() {
             Manage application accounts, roles, and access.
           </p>
         </div>
-        <Button onClick={() => setSearchParams({ mode: 'add' })}>
+        <Button onClick={() => updateParams({ mode: 'add' })}>
           <Plus className="size-4" /> Add User
         </Button>
       </header>
@@ -198,7 +198,15 @@ export function UserListPage() {
           <UserFilters
             filters={filters}
             onApply={(values) => updateParams({ ...values, page: '' })}
-            onReset={() => setSearchParams(search ? { search } : {})}
+            onReset={() => {
+              setSearchParams((current) => {
+                const next = new URLSearchParams(current);
+                next.delete('role');
+                next.delete('status');
+                next.delete('sort');
+                return next;
+              });
+            }}
           />
         )}
       </Card>

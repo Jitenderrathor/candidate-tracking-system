@@ -48,16 +48,10 @@ export function CandidateForm({ candidate, isSubmitting, onCancel, onSubmit, sub
         title="Personal Information"
       >
         <Input
-          error={errors.firstName?.message}
-          label="First Name"
+          error={errors.fullName?.message}
+          label="Full Name"
           required
-          {...register('firstName')}
-        />
-        <Input
-          error={errors.lastName?.message}
-          label="Last Name"
-          required
-          {...register('lastName')}
+          {...register('fullName')}
         />
         <Select
           error={errors.gender?.message}
@@ -65,14 +59,6 @@ export function CandidateForm({ candidate, isSubmitting, onCancel, onSubmit, sub
           options={GENDER_OPTIONS}
           required
           {...register('gender')}
-        />
-        <Input
-          error={errors.dateOfBirth?.message}
-          label="Date of Birth"
-          max={new Date().toISOString().slice(0, 10)}
-          required
-          type="date"
-          {...register('dateOfBirth')}
         />
       </FormSection>
       <FormSection description="How the candidate can be contacted." title="Contact Information">
@@ -89,29 +75,14 @@ export function CandidateForm({ candidate, isSubmitting, onCancel, onSubmit, sub
           error={errors.mobile?.message}
           label="Mobile"
           placeholder="+919876543210"
-          required
           type="tel"
           {...register('mobile')}
         />
-        <div className="md:col-span-2">
-          <FormTextarea
-            error={errors.address?.message}
-            label="Address"
-            required
-            {...register('address')}
-          />
-        </div>
       </FormSection>
       <FormSection
         description="Experience, compensation, and capabilities."
         title="Professional Information"
       >
-        <Input
-          error={errors.qualification?.message}
-          label="Qualification"
-          required
-          {...register('qualification')}
-        />
         <Input
           error={errors.experienceYears?.message}
           label="Experience (years)"
@@ -123,33 +94,11 @@ export function CandidateForm({ candidate, isSubmitting, onCancel, onSubmit, sub
           {...register('experienceYears')}
         />
         <Input
-          error={errors.currentCompany?.message}
-          label="Current Company"
-          {...register('currentCompany')}
-        />
-        <Input
-          error={errors.skills?.message}
-          helpText="Separate multiple skills with commas."
-          label="Skills"
-          placeholder="React, Node.js, MongoDB"
-          required
-          {...register('skills')}
-        />
-        <Input
-          error={errors.currentCTC?.message}
-          label="Current CTC"
-          min="0"
-          step="0.01"
-          type="number"
-          {...register('currentCTC')}
-        />
-        <Input
-          error={errors.expectedCTC?.message}
-          label="Expected CTC"
-          min="0"
-          step="0.01"
-          type="number"
-          {...register('expectedCTC')}
+          error={errors.linkedInProfile?.message}
+          label="LinkedIn URL"
+          placeholder="https://linkedin.com/in/username"
+          type="url"
+          {...register('linkedInProfile')}
         />
         <div className="md:col-span-2">
           <Input

@@ -20,7 +20,7 @@ const actions = [
     description: 'Upload candidate records',
     icon: FileSpreadsheet,
     path: ROUTES.EXCEL_IMPORT,
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN],
   },
   {
     label: 'View Reports',
@@ -33,14 +33,14 @@ const actions = [
     description: 'Manage system access',
     icon: Users,
     path: ROUTES.USERS,
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN],
   },
   {
     label: 'Recycle Bin',
     description: 'View deleted records',
     icon: Trash2,
     path: ROUTES.TRASH,
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN],
   },
 ];
 
@@ -67,7 +67,7 @@ export function QuickActions({ role }) {
           </h2>
           <p className="mt-1 text-sm text-slate-500">Frequently used recruitment tools.</p>
         </div>
-        {role === ROLES.ADMIN && (
+        {(role === ROLES.ADMIN || role === ROLES.SUPER_ADMIN) && (
           <Button onClick={() => setShowWipeModal(true)} variant="danger" size="sm">
             <ShieldAlert className="size-4" /> Wipe Complete Data
           </Button>

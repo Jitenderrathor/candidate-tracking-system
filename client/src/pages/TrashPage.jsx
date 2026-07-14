@@ -110,7 +110,7 @@ export function TrashPage() {
   const groupedTrash = useMemo(() => {
     if (!query.data?.candidates) return {};
     return query.data.candidates.reduce((acc, candidate) => {
-      const date = candidate.deletedAt ? new Date(candidate.deletedAt).toLocaleDateString(undefined, {
+      const date = (candidate.deletedAt || candidate.updatedAt) ? new Date(candidate.deletedAt || candidate.updatedAt).toLocaleDateString(undefined, {
         day: '2-digit', month: 'short', year: 'numeric'
       }) : 'Unknown Date';
       if (!acc[date]) acc[date] = [];

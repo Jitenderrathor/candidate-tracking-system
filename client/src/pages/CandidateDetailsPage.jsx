@@ -14,6 +14,7 @@ import { StatusUpdateModal } from '@/features/candidates/components/StatusUpdate
 import { StatusBadge } from '@/features/public-dashboard/components/StatusBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { EditCandidatePage } from '@/pages/EditCandidatePage';
+import { formatExperience } from '@/utils/formatters';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 
@@ -50,14 +51,15 @@ export function CandidateDetailsPage() {
   const fullName = candidate.fullName || `${candidate.firstName} ${candidate.lastName}`;
   const registrationDate = candidate.registrationDate || candidate.createdAt;
   const hasResume = Boolean(candidate.resumeUrl);
-  const candidateFields = [
-    { label: 'Registration Date', value: dateFormatter.format(new Date(registrationDate)) },
-    { label: 'Application Type', value: candidate.applicationType },
-    { label: 'Full Name', value: fullName },
-  ];
-  const contactFields = [
+  const personalFields = [
+    { label: 'Name', value: fullName },
     { label: 'Email', value: candidate.email },
-    { label: 'Phone', value: candidate.mobile },
+    { label: 'Mobile Number', value: candidate.mobile },
+    { label: 'Gender', value: candidate.gender },
+  ];
+
+  const professionalFields = [
+    { label: 'Experience', value: formatExperience(candidate.experienceYears) },
     {
       label: 'LinkedIn Profile',
       value: candidate.linkedInProfile ? (
@@ -72,14 +74,14 @@ export function CandidateDetailsPage() {
       ) : null,
     },
   ];
+
   const recruitmentFields = [
+    { label: 'Registration Date', value: dateFormatter.format(new Date(registrationDate)) },
     { label: 'Recruitment Source', value: candidate.source },
     {
       label: 'Current Status',
       value: <StatusBadge status={candidate.recruitmentStatus || candidate.status} />,
     },
-    { label: 'Recruitment Feedback', value: candidate.feedback },
-    { label: 'Reference Status', value: candidate.referenceStatus },
   ];
 
   return (
@@ -124,8 +126,8 @@ export function CandidateDetailsPage() {
         </div>
       </Card>
       <div className="grid gap-6 lg:grid-cols-2">
-        <DetailSection fields={candidateFields} title="Candidate Information" />
-        <DetailSection fields={contactFields} title="Contact Information" />
+        <DetailSection fields={personalFields} title="Personal Information" />
+        <DetailSection fields={professionalFields} title="Professional Information" />
         <DetailSection fields={recruitmentFields} title="Recruitment Information" />
         <Card>
           <h2 className="font-semibold text-slate-950">Resume</h2>

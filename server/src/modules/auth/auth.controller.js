@@ -31,4 +31,9 @@ const profile = async (req, res) => success(res, {
   data: { user: await authService.getProfile(req.user.id) },
 });
 
-module.exports = { changePassword, forgotPassword, login, profile, resetPassword };
+const updateProfile = async (req, res) => success(res, {
+  message: 'Profile updated successfully',
+  data: { user: await authService.updateProfile(req.user.id, req.body) },
+});
+
+module.exports = { changePassword, forgotPassword, login, profile, resetPassword, updateProfile };

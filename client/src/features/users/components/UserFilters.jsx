@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { Button, Select } from '@/components/common';
 
-const roleOptions = [
-  { label: 'Admin', value: 'Admin' },
-  { label: 'User', value: 'User' },
+import { useAuth } from '@/hooks/useAuth';
+import { ROLES } from '@/constants/auth';
+
+const ALL_ROLE_OPTIONS = [
+  { label: 'Super Admin', value: ROLES.SUPER_ADMIN },
+  { label: 'Admin', value: ROLES.ADMIN },
+  { label: 'User', value: ROLES.USER },
 ];
 const statusOptions = [
   { label: 'Active', value: 'active' },
@@ -17,6 +21,12 @@ const sortOptions = [
 ];
 
 export function UserFilters({ filters, onApply, onReset }) {
+  const { user } = useAuth();
+  
+  const roleOptions = user?.role === ROLES.SUPER_ADMIN 
+    ? ALL_ROLE_OPTIONS 
+    : ALL_ROLE_OPTIONS.filter(r => r.value === ROLES.USER);
+
   const [draft, setDraft] = useState(filters);
   const change = (field) => (event) =>
     setDraft((current) => ({ ...current, [field]: event.target.value }));
