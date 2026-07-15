@@ -4,6 +4,7 @@ const profileSchema = z.object({
   fullName: z.string().trim().min(1, 'Full name is required').max(100),
   email: z.string().trim().min(1, 'Email is required').email('Enter a valid email address'),
   role: z.enum(['Super Admin', 'Admin', 'User'], { errorMap: () => ({ message: 'Select a role' }) }),
+  permissions: z.array(z.string()).optional(),
 });
 
 const strongPassword = z
@@ -33,4 +34,5 @@ export const userDefaults = {
   role: 'User',
   password: '',
   confirmPassword: '',
+  permissions: ['edit_candidate'],
 };

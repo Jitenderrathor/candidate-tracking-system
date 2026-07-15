@@ -3,7 +3,7 @@ const AppError = require('../../common/errors/AppError');
 const env = require('../../config/env');
 
 const getSettings = async (req, res) => {
-  let settings = await Settings.findOne();
+  let settings = await Settings.findOne().populate('history.updatedBy', 'name email');
   
   if (!settings) {
     // Return default settings from env if not configured yet
@@ -21,6 +21,7 @@ const getSettings = async (req, res) => {
         smtpHost: env.smtp.host || '',
         smtpPort: env.smtp.port || '',
         smtpUser: env.smtp.user || '',
+        smtpPass: env.smtp.pass || '',
         hasSmtpPass: !!env.smtp.pass,
         history: [],
       },
@@ -30,7 +31,6 @@ const getSettings = async (req, res) => {
   // Hide password, just return if it's set
   const responseData = settings.toObject();
   responseData.hasSmtpPass = !!responseData.smtpPass;
-  delete responseData.smtpPass;
   // sort history newest first for UI
   responseData.history = (responseData.history || []).sort((a, b) => b.updatedAt - a.updatedAt);
 
@@ -96,7 +96,6 @@ const updateSettings = async (req, res) => {
 
   const responseData = settings.toObject();
   responseData.hasSmtpPass = !!responseData.smtpPass;
-  delete responseData.smtpPass;
   responseData.history = (responseData.history || []).sort((a, b) => b.updatedAt - a.updatedAt);
 
   res.status(200).json({

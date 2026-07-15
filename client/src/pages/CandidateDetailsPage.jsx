@@ -15,6 +15,7 @@ import { StatusBadge } from '@/features/public-dashboard/components/StatusBadge'
 import { useAuth } from '@/hooks/useAuth';
 import { EditCandidatePage } from '@/pages/EditCandidatePage';
 import { formatExperience } from '@/utils/formatters';
+import { hasPermission } from '@/utils/permissions';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 
@@ -79,8 +80,16 @@ export function CandidateDetailsPage() {
     { label: 'Registration Date', value: dateFormatter.format(new Date(registrationDate)) },
     { label: 'Recruitment Source', value: candidate.source },
     {
+      label: 'Assigned To',
+      value: candidate.assignedTo ? candidate.assignedTo.name : 'Unassigned',
+    },
+    {
       label: 'Current Status',
       value: <StatusBadge status={candidate.recruitmentStatus || candidate.status} />,
+    },
+    {
+      label: 'Remarks',
+      value: candidate.remarks || '—',
     },
   ];
 
@@ -111,7 +120,7 @@ export function CandidateDetailsPage() {
           <Button onClick={() => setShowStatusModal(true)} variant="outline">
             <Workflow className="size-4" /> Update Status
           </Button>
-          {user?.role === ROLES.ADMIN && (
+          {hasPermission(user, 'candidates') && (
             <>
               <Button asChild variant="outline">
                 <Link to={`?mode=edit`}>
@@ -190,7 +199,7 @@ export function CandidateDetailsPage() {
           candidate={candidate}
           isOpen
           onClose={() => setShowStatusModal(false)}
-          role={user?.role}
+          user={user}
         />
       )}
       {showDeleteModal && (

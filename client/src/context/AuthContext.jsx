@@ -9,7 +9,7 @@ const sessionFromToken = (token) => {
   if (!payload || isTokenExpired(payload)) return null;
   return {
     token,
-    user: { id: payload.sub, role: payload.role },
+    user: { id: payload.sub, role: payload.role, name: payload.name, permissions: payload.permissions || [] },
     expiresAt: payload.exp * 1000,
   };
 };

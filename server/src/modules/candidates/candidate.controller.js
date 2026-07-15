@@ -11,7 +11,7 @@ const createCandidate = async (req, res) => success(res, {
 });
 
 const listCandidates = async (req, res) => {
-  const { candidates, meta } = await candidateService.list(req.query);
+  const { candidates, meta } = await candidateService.list(req.query, req.user);
   return success(res, {
     message: 'Candidates retrieved successfully',
     data: { candidates },
@@ -21,7 +21,7 @@ const listCandidates = async (req, res) => {
 
 const getCandidate = async (req, res) => success(res, {
   message: 'Candidate retrieved successfully',
-  data: { candidate: await candidateService.getById(req.params.id) },
+  data: { candidate: await candidateService.getById(req.params.id, req.user) },
 });
 
 const updateCandidate = async (req, res) => success(res, {
@@ -35,7 +35,7 @@ const deleteCandidate = async (req, res) => {
 };
 
 const listTrash = async (req, res) => {
-  const { candidates, meta } = await candidateService.listTrash(req.query);
+  const { candidates, meta } = await candidateService.listTrash(req.query, req.user);
   return success(res, {
     message: 'Deleted candidates retrieved successfully',
     data: { candidates },
@@ -50,6 +50,11 @@ const restoreCandidate = async (req, res) => {
 
 const bulkDelete = async (req, res) => {
   const { candidateIds } = req.body || {};
+  if (!candidateIds || candidateIds.length === 0) {
+    if (req.user.role !== 'Super Admin' && (!req.user.permissions || !req.user.permissions.includes('wipe_data'))) {
+      throw new AppError('You do not have permission to wipe complete data', 403, { code: 'FORBIDDEN_PERMISSION' });
+    }
+  }
   const result = await candidateService.bulkDelete(req.user.id, candidateIds);
   return success(res, { message: `Successfully deleted ${result.deletedCount} candidates`, data: result });
 };
@@ -60,10 +65,23 @@ const bulkRestore = async (req, res) => {
 };
 
 const exportCandidates = async (req, res) => {
-  const buffer = await candidateService.exportData(req.query);
+  const buffer = await candidateService.exportData(req.query, req.user);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename="candidates.xlsx"');
   return res.send(buffer);
+};
+
+const bulkAssign = async (req, res) => {
+  const { candidateIds, assignedTo } = req.body;
+  if (!candidateIds || !candidateIds.length) {
+    throw new AppError('No candidates selected', 400);
+  }
+  if (!assignedTo) {
+    throw new AppError('No user selected for assignment', 400);
+  }
+
+  const result = await candidateService.bulkAssign(candidateIds, assignedTo, req.user.id);
+  return success(res, { message: `Successfully assigned ${result.assignedCount} candidates`, data: result });
 };
 
 const bulkEmail = async (req, res) => {
@@ -106,4 +124,5 @@ module.exports = {
   bulkRestore,
   exportCandidates,
   bulkEmail,
+  bulkAssign,
 };

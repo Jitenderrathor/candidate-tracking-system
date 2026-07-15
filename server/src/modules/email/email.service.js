@@ -113,7 +113,7 @@ const sendBulkEmails = async (candidates, template, { cc } = {}) => {
     let html = template.htmlBody;
     let subject = template.subject;
 
-    template.variables.forEach((variable) => {
+    (template.variables || []).forEach((variable) => {
       const regex = new RegExp(`\\{\\{${variable}\\}\\}`, 'g');
       const value = candidate[variable] || '';
       html = html.replace(regex, value);
@@ -121,13 +121,15 @@ const sendBulkEmails = async (candidates, template, { cc } = {}) => {
     });
 
     try {
-      await transporter.sendMail({
+      const mailOptions = {
         from,
         to: candidate.email,
-        cc: finalCc,
         subject,
         html,
-      });
+      };
+      if (finalCc) mailOptions.cc = finalCc;
+
+      await transporter.sendMail(mailOptions);
       // Tiny delay to avoid rate limits on basic SMTP servers
       await new Promise(r => setTimeout(r, 100));
     } catch (error) {
@@ -136,4 +138,45 @@ const sendBulkEmails = async (candidates, template, { cc } = {}) => {
   }
 };
 
-module.exports = { sendPasswordResetOTP, sendBulkEmails };
+const sendUserCreationEmail = async (to, name, password, creatorName) => {
+  const transporter = await getTransporter();
+  if (!transporter) {
+    console.error('Failed to send user creation email because SMTP is not configured.');
+    return;
+  }
+
+  const { from } = await getSettings();
+
+  const mailOptions = {
+    from,
+    to,
+    subject: 'Welcome to Candidate Tracking System',
+    text: `Hello ${name},\n\n${creatorName} has created an account for you and given you access to the application.\n\nHere are your login credentials:\nEmail (Username): ${to}\nPassword: ${password}\n\nPlease log in here: ${env.clientOrigin}/login\n\nPlease log in and change your password as soon as possible.\n\nBest regards,\nThe Candidate Tracking System Team`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.5;">
+        <h2>Welcome to Candidate Tracking System!</h2>
+        <p>Hello ${name},</p>
+        <p><strong>${creatorName}</strong> has created an account for you and granted you access to the application.</p>
+        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 24px 0;">
+          <h3 style="margin-top: 0; color: #1f2937;">Your Login Credentials:</h3>
+          <p style="margin: 4px 0; color: #4b5563;"><strong>Username / Email:</strong> ${to}</p>
+          <p style="margin: 4px 0; color: #4b5563;"><strong>Password:</strong> ${password}</p>
+        </div>
+        <p>You can log in to the application using the button below:</p>
+        <p style="text-align: center; margin: 30px 0;">
+          <a href="${env.clientOrigin}/login" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Log In Now</a>
+        </p>
+        <p>Please log in and change your password as soon as possible for security purposes.</p>
+        <p style="margin-top: 32px; color: #6b7280; font-size: 14px;">Best regards,<br>The Candidate Tracking System Team</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error('Error sending user creation email:', error);
+  }
+};
+
+module.exports = { sendPasswordResetOTP, sendBulkEmails, sendUserCreationEmail };

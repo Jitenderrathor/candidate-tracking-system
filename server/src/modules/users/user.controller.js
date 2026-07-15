@@ -37,10 +37,16 @@ const resetPassword = async (req, res) => success(res, {
   data: await userService.resetPassword(req.params.id, req.user),
 });
 
+const deleteUser = async (req, res) => {
+  await userService.remove(req.params.id, req.user);
+  return success(res, { message: 'User deleted successfully' });
+};
+
 module.exports = {
   activateUser,
   createUser,
   deactivateUser,
+  deleteUser,
   getUser,
   listUsers,
   resetPassword,

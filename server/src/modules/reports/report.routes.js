@@ -2,7 +2,7 @@ const express = require('express');
 const asyncHandler = require('../../common/utils/asyncHandler');
 const validateRequest = require('../../common/middleware/validateRequest');
 const { success } = require('../../common/utils/apiResponse');
-const { authenticate, userOrAdmin } = require('../auth/auth.middleware');
+const { authenticate, requirePermission } = require('../auth/auth.middleware');
 const controller = require('./report.controller');
 const { reportQueryValidation } = require('./report.validation');
 
@@ -16,7 +16,7 @@ router.get('/', (_req, res) => success(res, {
     implementationStatus: 'implemented',
   },
 }));
-router.use(authenticate, userOrAdmin);
+router.use(authenticate, requirePermission('reports'));
 router.get('/summary', reportQueryValidation, validateRequest, asyncHandler(controller.summary));
 router.get('/candidates', reportQueryValidation, validateRequest, asyncHandler(controller.candidates));
 router.get('/status', reportQueryValidation, validateRequest, asyncHandler(controller.status));

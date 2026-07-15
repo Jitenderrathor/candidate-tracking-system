@@ -49,4 +49,30 @@ const superAdminOnly = authorize('Super Admin');
 const adminOnly = authorize('Super Admin', 'Admin');
 const userOrAdmin = authorize('Super Admin', 'Admin', 'User');
 
-module.exports = { adminOnly, authenticate, authorize, superAdminOnly, userOrAdmin };
+const requirePermission = (permission) => (req, _res, next) => {
+  if (!req.user) {
+    return next(new AppError('Authentication required', 401, { code: 'UNAUTHORIZED' }));
+  }
+  if (req.user.role === 'Super Admin') {
+    return next();
+  }
+  if (!req.user.permissions || !req.user.permissions.includes(permission)) {
+    return next(new AppError('You do not have permission to perform this action', 403, { code: 'FORBIDDEN_PERMISSION' }));
+  }
+  return next();
+};
+
+const requireAnyPermission = (...permissions) => (req, _res, next) => {
+  if (!req.user) {
+    return next(new AppError('Authentication required', 401, { code: 'UNAUTHORIZED' }));
+  }
+  if (req.user.role === 'Super Admin') {
+    return next();
+  }
+  if (!req.user.permissions || !permissions.some(p => req.user.permissions.includes(p))) {
+    return next(new AppError('You do not have permission to perform this action', 403, { code: 'FORBIDDEN_PERMISSION' }));
+  }
+  return next();
+};
+
+module.exports = { adminOnly, authenticate, authorize, superAdminOnly, userOrAdmin, requirePermission, requireAnyPermission };

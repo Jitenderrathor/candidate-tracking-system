@@ -1,7 +1,7 @@
 const express = require('express');
 const emailTemplateController = require('./emailTemplate.controller');
 const { createTemplateValidation, updateTemplateValidation } = require('./emailTemplate.validation');
-const { adminOnly, authenticate } = require('../auth/auth.middleware');
+const { adminOnly, authenticate, requirePermission } = require('../auth/auth.middleware');
 const validateRequest = require('../../common/middleware/validateRequest');
 const asyncHandler = require('../../common/utils/asyncHandler');
 const { ROLES } = require('../candidates/candidate.constants');
@@ -9,7 +9,7 @@ const { ROLES } = require('../candidates/candidate.constants');
 const router = express.Router();
 
 router.use(authenticate);
-router.use(adminOnly);
+router.use(requirePermission('email_templates'));
 
 router.route('/')
   .get(asyncHandler(emailTemplateController.getTemplates))

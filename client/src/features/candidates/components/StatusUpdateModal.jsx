@@ -6,8 +6,9 @@ import { ROLES } from '@/constants/auth';
 import { updateCandidateStatus } from '@/features/candidates/candidate.api';
 import { STATUS_ORDER, CANDIDATE_STATUSES } from '@/features/candidates/candidate.constants';
 import { FormTextarea } from '@/features/candidates/components/FormTextarea';
+import { hasPermission } from '@/utils/permissions';
 
-const transitionsFor = (status, role) => {
+const transitionsFor = (status, user) => {
   if (status === 'Rejected') return [];
   const currentOrder = STATUS_ORDER[status] || 0;
   
@@ -15,7 +16,7 @@ const transitionsFor = (status, role) => {
     .filter((s) => s !== 'Rejected' && s !== status && STATUS_ORDER[s] > currentOrder)
     .map((s) => ({ label: s, value: s }));
     
-  if (role === ROLES.ADMIN) {
+  if (hasPermission(user, 'candidates:update-backwards')) {
     CANDIDATE_STATUSES
       .filter((s) => s !== 'Rejected' && s !== status && STATUS_ORDER[s] < currentOrder)
       .forEach((s) => options.push({ label: `${s} (Rollback)`, value: s }));
@@ -25,9 +26,9 @@ const transitionsFor = (status, role) => {
   return options;
 };
 
-export function StatusUpdateModal({ candidate, isOpen, onClose, role }) {
+export function StatusUpdateModal({ candidate, isOpen, onClose, user }) {
   const displayedStatus = candidate.recruitmentStatus || candidate.status;
-  const options = displayedStatus === 'Rejected' ? [] : transitionsFor(candidate.status, role);
+  const options = displayedStatus === 'Rejected' ? [] : transitionsFor(candidate.status, user);
   const [status, setStatus] = useState(options[0]?.value || '');
   const [remarks, setRemarks] = useState('');
   const [error, setError] = useState('');

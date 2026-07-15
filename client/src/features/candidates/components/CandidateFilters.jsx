@@ -1,15 +1,31 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button, Input, Select } from '@/components/common';
 import {
   SORT_OPTIONS,
   SOURCE_OPTIONS,
   STATUS_OPTIONS,
 } from '@/features/candidates/candidate.constants';
+import { listUsers } from '@/features/users/user.api';
+import { useAuth } from '@/hooks/useAuth';
 
 export function CandidateFilters({ filters, onApply, onReset }) {
+  const { user } = useAuth();
   const [draft, setDraft] = useState(filters);
   const update = (field) => (event) =>
     setDraft((current) => ({ ...current, [field]: event.target.value }));
+
+  const usersQuery = useQuery({
+    queryKey: ['users', { limit: 500 }],
+    queryFn: () => listUsers({ limit: 500 }),
+    enabled: user?.role === 'Admin' || user?.role === 'Super Admin',
+  });
+
+  const userOptions = usersQuery.data?.users?.map((u) => ({
+    label: u.fullName || u.name,
+    value: u._id,
+  })) || [];
+
   return (
     <div className="grid gap-4 rounded-xl border bg-slate-50/70 p-4 sm:grid-cols-2 xl:grid-cols-4">
       <Select
@@ -24,6 +40,15 @@ export function CandidateFilters({ filters, onApply, onReset }) {
         options={SOURCE_OPTIONS}
         value={draft.source}
       />
+      {(user?.role === 'Admin' || user?.role === 'Super Admin') && (
+        <Select
+          label="Assigned To"
+          onChange={update('assignedTo')}
+          options={[{ label: 'Any User', value: '' }, ...userOptions]}
+          value={draft.assignedTo || ''}
+          disabled={usersQuery.isLoading}
+        />
+      )}
       <Select label="Sort By" onChange={update('sort')} options={SORT_OPTIONS} value={draft.sort} />
       <Input
         label="Minimum Experience"
@@ -58,6 +83,7 @@ export function CandidateFilters({ filters, onApply, onReset }) {
               ...filters,
               status: '',
               source: '',
+              assignedTo: '',
               minExperience: '',
               maxExperience: '',
               createdFrom: '',

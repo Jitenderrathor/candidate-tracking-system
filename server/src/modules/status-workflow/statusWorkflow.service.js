@@ -13,7 +13,7 @@ const STATUS_ORDER = {
   'Selected': 4,
 };
 
-const validateTransition = ({ oldStatus, newStatus, role, remarks }) => {
+const validateTransition = ({ oldStatus, newStatus, actor, remarks }) => {
   if (oldStatus === newStatus) {
     throw new AppError('Candidate is already in this status', 422, { code: 'SAME_STATUS' });
   }
@@ -28,7 +28,8 @@ const validateTransition = ({ oldStatus, newStatus, role, remarks }) => {
   if (newOrder > oldOrder) return;
 
   // Backward transition
-  const isAdminRollback = role === 'Admin';
+  const isAdminRollback = actor.role === 'Super Admin' || actor.role === 'Admin' || (actor.permissions && actor.permissions.includes('candidates:update-backwards'));
+  
   if (isAdminRollback) {
     if (!remarks?.trim()) {
       throw new AppError('Remarks are required when moving a candidate backwards', 422, {
@@ -71,7 +72,7 @@ const createStatusWorkflowService = ({
         }
 
         const oldStatus = candidate.status;
-        validateTransition({ oldStatus, newStatus, role: actor.role, remarks });
+        validateTransition({ oldStatus, newStatus, actor, remarks });
         const changedAt = new Date();
 
         candidate.status = newStatus;

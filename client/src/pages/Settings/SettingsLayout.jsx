@@ -5,8 +5,8 @@ import { ROLES } from '@/constants/auth';
 import { AccountSettingsForm } from './AccountSettingsForm';
 import { SMTPSettingsForm } from './SMTPSettingsForm';
 import { EmailSettingsForm } from './EmailSettingsForm';
-import { UserPermissionsForm } from './UserPermissionsForm';
 import { UserListPage } from '../UserListPage';
+import { hasPermission } from '@/utils/permissions';
 
 export function SettingsLayout() {
   const { user } = useAuth();
@@ -36,12 +36,8 @@ export function SettingsLayout() {
     { id: 'email', label: 'Email Defaults', icon: Mail },
   ];
 
-  if (user?.role === ROLES.SUPER_ADMIN || user?.role === ROLES.ADMIN) {
+  if (hasPermission(user, 'manage_users')) {
     tabs.push({ id: 'users', label: 'Manage Users', icon: Users });
-  }
-
-  if (user?.role === ROLES.SUPER_ADMIN) {
-    tabs.push({ id: 'permissions', label: 'User Permissions', icon: Shield });
   }
 
   return (
@@ -81,7 +77,6 @@ export function SettingsLayout() {
             {activeTab === 'smtp' && <SMTPSettingsForm />}
             {activeTab === 'email' && <EmailSettingsForm />}
             {activeTab === 'users' && <UserListPage />}
-            {activeTab === 'permissions' && <UserPermissionsForm />}
           </main>
         </div>
       </div>

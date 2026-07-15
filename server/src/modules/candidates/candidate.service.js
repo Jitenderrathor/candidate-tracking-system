@@ -33,15 +33,31 @@ const parseSort = (value = '-createdAt') => {
   return Object.keys(sort).length ? sort : { createdAt: -1 };
 };
 
-const buildFilter = (query, isDeleted = false) => {
+const buildFilter = (query, isDeleted = false, user = null) => {
   const filter = { isDeleted };
+  
+  if (user && user.role === 'User') {
+    filter.$or = [
+      { assignedTo: user._id },
+      { createdBy: user._id }
+    ];
+  }
+
   if (query.search) {
     const expression = new RegExp(escapeRegex(query.search), 'i');
-    filter.$or = ['candidateId', 'fullName', 'email', 'mobile']
+    const searchOr = ['candidateId', 'fullName', 'email', 'mobile']
       .map((field) => ({ [field]: expression }));
+      
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
+      delete filter.$or;
+    } else {
+      filter.$or = searchOr;
+    }
   }
   if (query.status) filter.status = query.status;
   if (query.source) filter.source = query.source;
+  if (query.assignedTo) filter.assignedTo = query.assignedTo;
   if (query.qualification) filter.qualification = new RegExp(`^${escapeRegex(query.qualification)}$`, 'i');
   if (query.minExperience !== undefined || query.maxExperience !== undefined) {
     filter.experienceYears = {};
@@ -88,12 +104,13 @@ const createCandidateService = ({ CandidateModel = Candidate, CounterModel = Can
     });
   };
 
-  const list = async (query) => {
+  const list = async (query, user = null) => {
     const page = Number(query.page || 1);
     const limit = Number(query.limit || 10);
-    const filter = buildFilter(query);
+    const filter = buildFilter(query, false, user);
     const [candidates, total] = await Promise.all([
       CandidateModel.find(filter)
+        .populate('assignedTo', 'name email')
         .sort(parseSort(query.sort))
         .skip((page - 1) * limit)
         .limit(limit)
@@ -106,21 +123,22 @@ const createCandidateService = ({ CandidateModel = Candidate, CounterModel = Can
     };
   };
 
-  const getById = async (id) => {
-    const candidate = await CandidateModel.findOne({
-      ...documentLookup(id, 'candidateId'),
-      isDeleted: false,
-    });
+  const getById = async (id, user = null) => {
+    const filter = { ...documentLookup(id, 'candidateId'), isDeleted: false };
+    if (user && user.role === 'User') {
+      filter.$or = [{ assignedTo: user._id }, { createdBy: user._id }];
+    }
+    const candidate = await CandidateModel.findOne(filter).populate('assignedTo', 'name email');
     if (!candidate) throw new AppError('Candidate not found', 404, { code: 'CANDIDATE_NOT_FOUND' });
     return candidate;
   };
 
   const getByIds = async (ids) => {
-    return CandidateModel.find({ candidateId: { $in: ids }, isDeleted: false }).lean();
+    return CandidateModel.find({ candidateId: { $in: ids }, isDeleted: false }).populate('assignedTo', 'name email').lean();
   };
 
   const getByStatuses = async (statuses) => {
-    return CandidateModel.find({ status: { $in: statuses }, isDeleted: false }).lean();
+    return CandidateModel.find({ status: { $in: statuses }, isDeleted: false }).populate('assignedTo', 'name email').lean();
   };
 
   const update = async (id, input, userId) => {
@@ -144,12 +162,13 @@ const createCandidateService = ({ CandidateModel = Candidate, CounterModel = Can
     await candidate.save();
   };
 
-  const listTrash = async (query) => {
+  const listTrash = async (query, user = null) => {
     const page = Number(query.page || 1);
     const limit = Number(query.limit || 10);
-    const filter = buildFilter(query, true);
+    const filter = buildFilter(query, true, user);
     const [candidates, total] = await Promise.all([
       CandidateModel.find(filter)
+        .populate('assignedTo', 'name email')
         .sort(parseSort(query.sort))
         .skip((page - 1) * limit)
         .limit(limit)
@@ -204,6 +223,14 @@ const createCandidateService = ({ CandidateModel = Candidate, CounterModel = Can
     return { restoredCount: result.modifiedCount };
   };
 
+  const bulkAssign = async (candidateIds, assignedTo, userId) => {
+    const result = await CandidateModel.updateMany(
+      { candidateId: { $in: candidateIds }, isDeleted: false },
+      { $set: { assignedTo, updatedBy: userId } }
+    );
+    return { assignedCount: result.modifiedCount };
+  };
+
   const hardDeleteExpiredCandidates = async (days = 30) => {
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() - days);
@@ -215,9 +242,10 @@ const createCandidateService = ({ CandidateModel = Candidate, CounterModel = Can
     return { deletedCount: result.deletedCount };
   };
 
-  const exportData = async (query) => {
-    const filter = buildFilter(query);
+  const exportData = async (query, user = null) => {
+    const filter = buildFilter(query, false, user);
     const candidates = await CandidateModel.find(filter)
+      .populate('assignedTo', 'name email')
       .sort(parseSort(query.sort))
       .lean();
 
@@ -235,12 +263,14 @@ const createCandidateService = ({ CandidateModel = Candidate, CounterModel = Can
       { header: 'LinkedIn URL', key: 'linkedInProfile', width: 30 },
       { header: 'Source', key: 'source', width: 15 },
       { header: 'Status', key: 'status', width: 15 },
+      { header: 'Assigned To', key: 'assignedTo', width: 25 },
       { header: 'Registration Date', key: 'createdAt', width: 20 },
     ];
 
     candidates.forEach((c) => {
       worksheet.addRow({
         ...c,
+        assignedTo: c.assignedTo ? c.assignedTo.name : 'Unassigned',
         createdAt: c.createdAt ? new Date(c.createdAt).toISOString().split('T')[0] : '',
       });
     });
@@ -251,7 +281,7 @@ const createCandidateService = ({ CandidateModel = Candidate, CounterModel = Can
     return buffer;
   };
 
-  return { create, getById, getByIds, getByStatuses, list, remove, update, listTrash, restore, bulkDelete, bulkRestore, hardDeleteExpiredCandidates, exportData };
+  return { create, getById, getByIds, getByStatuses, list, remove, update, listTrash, restore, bulkDelete, bulkRestore, bulkAssign, hardDeleteExpiredCandidates, exportData };
 };
 
 module.exports = Object.assign(createCandidateService(), {

@@ -76,6 +76,7 @@ const candidateSchema = new mongoose.Schema({
   remarks: { type: String, trim: true, default: '', maxlength: 2000 },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, immutable: true },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   isDeleted: { type: Boolean, default: false, index: true, select: false },
   deletedAt: { type: Date, default: null, select: false },
   deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, select: false },

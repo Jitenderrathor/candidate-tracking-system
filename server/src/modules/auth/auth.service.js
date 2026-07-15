@@ -10,7 +10,7 @@ const DUMMY_PASSWORD_HASH = '$2b$12$RMhOb8UCAFHmyaoKKzN2H.AVMCiwtwloVGnkCpMORxls
 const publicUser = (user) => user.toJSON();
 
 const signToken = (user) => jwt.sign(
-  { sub: user.id, role: user.role },
+  { sub: user.id, role: user.role, name: user.name, permissions: user.permissions || [] },
   env.jwtSecret,
   { algorithm: 'HS256', expiresIn: env.jwtExpiresIn },
 );
@@ -35,6 +35,9 @@ const login = async ({ email, password }) => {
 const changePassword = async (userId, { oldPassword, newPassword }) => {
   const user = await User.findById(userId).select('+password');
   if (!user) throw new AppError('User not found', 404, { code: 'USER_NOT_FOUND' });
+  if (user.role === 'User') {
+    throw new AppError('Standard users are not permitted to change their password.', 403, { code: 'FORBIDDEN' });
+  }
   if (!(await user.comparePassword(oldPassword))) {
     throw new AppError('Old password is incorrect', 400, { code: 'INVALID_OLD_PASSWORD' });
   }

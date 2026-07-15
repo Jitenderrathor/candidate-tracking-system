@@ -22,7 +22,7 @@ const userIdValidation = [
 
 const listUsersValidation = [
   query('page').optional().isInt({ min: 1 }).toInt(),
-  query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
+  query('limit').optional().isInt({ min: 1, max: 500 }).toInt(),
   query('search').optional().isString().trim().isLength({ max: 100 }),
   query('role').optional().isIn(ROLES).withMessage('Role is invalid'),
   query('status').optional().isIn(STATUSES).withMessage('Status must be active or inactive'),
@@ -34,6 +34,8 @@ const createUserValidation = [
     .withMessage('Full name is required and cannot exceed 100 characters'),
   body('email').trim().isEmail().normalizeEmail().withMessage('A valid email is required'),
   body('role').isIn(ROLES).withMessage('Role is invalid'),
+  body('permissions').optional().isArray().withMessage('Permissions must be an array of strings'),
+  body('permissions.*').isString().withMessage('Each permission must be a string'),
   passwordRules('password'),
 ];
 
@@ -43,8 +45,10 @@ const updateUserValidation = [
   body('fullName').optional().isString().trim().notEmpty().isLength({ max: 100 }),
   body('email').optional().trim().isEmail().normalizeEmail(),
   body('role').optional().isIn(ROLES).withMessage('Role is invalid'),
+  body('permissions').optional().isArray().withMessage('Permissions must be an array of strings'),
+  body('permissions.*').isString().withMessage('Each permission must be a string'),
   body().custom((value) => {
-    if (!['fullName', 'email', 'role'].some((field) => value[field] !== undefined)) {
+    if (!['fullName', 'email', 'role', 'permissions'].some((field) => value[field] !== undefined)) {
       throw new Error('At least one editable field is required');
     }
     return true;

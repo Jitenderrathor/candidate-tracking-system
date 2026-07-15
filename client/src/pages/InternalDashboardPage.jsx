@@ -144,7 +144,7 @@ export function InternalDashboardPage() {
         ))}
       </div>
 
-      <QuickActions role={user?.role} />
+      <QuickActions user={user} />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <ChartCard

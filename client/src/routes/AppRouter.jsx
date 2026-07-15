@@ -117,7 +117,7 @@ export function AppRouter() {
         </Route>
       </Route>
 
-      <Route element={<ProtectedRoute roles={[ROLES.ADMIN]} />}>
+      <Route element={<ProtectedRoute permissions={['excel_import']} />}>
         <Route element={<DashboardLayout />}>
           <Route
             element={
@@ -135,6 +135,11 @@ export function AppRouter() {
             }
             path="/import-history"
           />
+        </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute permissions={['email_templates']} />}>
+        <Route element={<DashboardLayout />}>
           <Route
             element={
               <Suspense fallback={<LoadingPage />}>
@@ -143,6 +148,11 @@ export function AppRouter() {
             }
             path={ROUTES.EMAIL_TEMPLATES}
           />
+        </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute permissions={['recycle_bin']} />}>
+        <Route element={<DashboardLayout />}>
           <Route
             element={
               <Suspense fallback={<LoadingPage />}>
@@ -151,6 +161,11 @@ export function AppRouter() {
             }
             path={ROUTES.TRASH}
           />
+        </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute permissions={['system_settings', 'manage_users', 'manage_admins']} />}>
+        <Route element={<DashboardLayout />}>
           <Route
             element={
               <Suspense fallback={<LoadingPage />}>

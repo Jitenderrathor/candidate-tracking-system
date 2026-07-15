@@ -2,8 +2,15 @@ const crypto = require('node:crypto');
 const AppError = require('../../common/errors/AppError');
 const { escapeRegex } = require('../../common/utils/mongoQuery');
 const User = require('../auth/user.model');
+const { sendUserCreationEmail } = require('../email/email.service');
 
 const SORT_FIELDS = Object.freeze({ name: 'name', fullName: 'name', createdAt: 'createdAt' });
+
+const PERMISSION_MAPPINGS = {
+  'User': ['dashboard', 'candidates', 'reports'],
+  'Admin': ['dashboard', 'candidates', 'reports', 'excel_import', 'manage_users', 'recycle_bin', 'email_templates'],
+  'Super Admin': ['dashboard', 'candidates', 'reports', 'excel_import', 'manage_users', 'recycle_bin', 'email_templates', 'system_settings', 'manage_admins']
+};
 
 const toPublicUser = (user) => {
   const value = typeof user.toJSON === 'function' ? user.toJSON() : { ...user };
@@ -66,20 +73,28 @@ const createUserService = ({ UserModel = User, temporaryPasswordFactory = genera
 
   const getById = async (id) => toPublicUser(await getDocument(id));
 
-  const create = async ({ fullName, email, password, role }, actor) => {
+  const create = async ({ fullName, email, password, role, permissions }, actor) => {
     if (actor.role === 'Admin' && role !== 'User') {
       throw new AppError('Admins can only create standard Users', 403, { code: 'FORBIDDEN_ROLE_CREATION' });
     }
     await ensureUniqueEmail(email);
+    
+    const initialPermissions = permissions || PERMISSION_MAPPINGS[role] || [];
+    
     const user = await UserModel.create({
       name: fullName,
       fullName,
       email,
       password,
       role,
+      permissions: initialPermissions,
       createdBy: actor._id,
       updatedBy: actor._id,
     });
+    
+    const creatorName = actor.fullName || actor.name || 'An Administrator';
+    await sendUserCreationEmail(email, fullName, password, creatorName);
+    
     return toPublicUser(user);
   };
 
@@ -100,6 +115,7 @@ const createUserService = ({ UserModel = User, temporaryPasswordFactory = genera
     }
     if (changes.email !== undefined) user.email = changes.email;
     if (changes.role !== undefined) user.role = changes.role;
+    if (changes.permissions !== undefined) user.permissions = changes.permissions;
     user.updatedBy = actor._id;
     await user.save();
     return toPublicUser(user);
@@ -135,7 +151,21 @@ const createUserService = ({ UserModel = User, temporaryPasswordFactory = genera
     return { user: toPublicUser(user), temporaryPassword };
   };
 
-  return { create, getById, list, resetPassword, setActive, update };
+  const remove = async (id, actor) => {
+    if (String(id) === String(actor._id)) {
+      throw new AppError('You cannot delete your own account', 409, {
+        code: 'SELF_DELETION_FORBIDDEN',
+      });
+    }
+    const user = await getDocument(id);
+    if (actor.role === 'Admin' && user.role !== 'User') {
+      throw new AppError('Admins can only delete standard Users', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+    }
+    await UserModel.findByIdAndDelete(id);
+    return true;
+  };
+
+  return { create, getById, list, resetPassword, setActive, update, remove };
 };
 
 module.exports = Object.assign(createUserService(), {

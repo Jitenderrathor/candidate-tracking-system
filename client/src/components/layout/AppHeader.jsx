@@ -31,15 +31,6 @@ export function AppHeader({ onLogout, onOpenNavigation, user }) {
           </h1>
         </div>
         <div className="ml-auto hidden md:block"></div>
-        <button
-          aria-label="Notifications"
-          className="relative rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-          onClick={() => toast('No new notifications.')}
-          type="button"
-        >
-          <Bell className="size-5" />
-          <span className="absolute right-2 top-2 size-1.5 rounded-full bg-brand-500" />
-        </button>
         <ProfileMenu onLogout={onLogout} user={user} />
       </div>
       <div className="border-t bg-white px-4 py-2 sm:px-6 lg:px-8">

@@ -6,6 +6,7 @@ import { Button, Card, Modal } from '@/components/common';
 import { ROLES } from '@/constants/auth';
 import { ROUTES } from '@/constants/routes';
 import { bulkDeleteCandidates } from '@/features/candidates/candidate.api';
+import { hasPermission } from '@/utils/permissions';
 
 const actions = [
   {
@@ -14,40 +15,42 @@ const actions = [
     icon: UserPlus,
     path: ROUTES.CANDIDATES,
     state: { openCreate: true },
+    permissions: ['add_candidate'],
   },
   {
     label: 'Import Excel',
     description: 'Upload candidate records',
     icon: FileSpreadsheet,
     path: ROUTES.EXCEL_IMPORT,
-    roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN],
+    permissions: ['excel_import'],
   },
   {
     label: 'View Reports',
     description: 'Review recruitment reports',
     icon: FileBarChart,
     path: ROUTES.REPORTS,
+    permissions: ['reports'],
   },
   {
     label: 'Manage Users',
     description: 'Manage system access',
     icon: Users,
     path: ROUTES.USERS,
-    roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN],
+    permissions: ['manage_users', 'manage_admins'],
   },
   {
     label: 'Recycle Bin',
     description: 'View deleted records',
     icon: Trash2,
     path: ROUTES.TRASH,
-    roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN],
+    permissions: ['recycle_bin'],
   },
 ];
 
-export function QuickActions({ role }) {
+export function QuickActions({ user }) {
   const [showWipeModal, setShowWipeModal] = useState(false);
   const queryClient = useQueryClient();
-  const visibleActions = actions.filter((action) => !action.roles || action.roles.includes(role));
+  const visibleActions = actions.filter((action) => !action.permissions || hasPermission(user, action.permissions));
 
   const wipeMutation = useMutation({
     mutationFn: bulkDeleteCandidates,
@@ -67,7 +70,7 @@ export function QuickActions({ role }) {
           </h2>
           <p className="mt-1 text-sm text-slate-500">Frequently used recruitment tools.</p>
         </div>
-        {(role === ROLES.ADMIN || role === ROLES.SUPER_ADMIN) && (
+        {hasPermission(user, 'wipe_data') && (
           <Button onClick={() => setShowWipeModal(true)} variant="danger" size="sm">
             <ShieldAlert className="size-4" /> Wipe Complete Data
           </Button>

@@ -9,8 +9,8 @@ import { Button, Card, Input, Loader } from '@/components/common';
 import { getSettings, updateSettings } from '@/features/settings/settings.api';
 
 const smtpSettingsSchema = z.object({
-  smtpHost: z.string().trim().min(1, 'SMTP Host is required'),
-  smtpPort: z.coerce.number().min(1).max(65535),
+  smtpHost: z.string().optional().or(z.literal('')),
+  smtpPort: z.coerce.number().optional().or(z.literal('')),
   smtpUser: z.string().trim().min(1, 'SMTP User is required'),
   smtpPass: z.string().optional(),
 });
@@ -40,7 +40,7 @@ export function SMTPSettingsForm() {
         smtpHost: settingsQuery.data.smtpHost || '',
         smtpPort: settingsQuery.data.smtpPort || 587,
         smtpUser: settingsQuery.data.smtpUser || '',
-        smtpPass: '', // Always empty, handled via hasSmtpPass placeholder visually
+        smtpPass: settingsQuery.data.smtpPass || '',
       });
     }
   }, [settingsQuery.data, reset]);
@@ -50,7 +50,7 @@ export function SMTPSettingsForm() {
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       toast.success(response.message || 'SMTP settings updated successfully');
-      reset({ ...response.data, smtpPass: '' });
+      reset(response.data);
     },
     onError: () => {
       toast.error('Failed to update SMTP settings');
@@ -86,7 +86,7 @@ export function SMTPSettingsForm() {
               <Input
                 error={errors.smtpPass?.message}
                 label="App Password"
-                placeholder={settingsQuery.data?.hasSmtpPass ? '•••••••• (Leave blank to keep)' : 'Enter App Password'}
+                placeholder="Enter App Password"
                 type="password"
                 {...register('smtpPass')}
               />
@@ -136,7 +136,9 @@ export function SMTPSettingsForm() {
                         </span>
                       </td>
                       <td className="py-3 text-slate-600">{record.smtpUser}</td>
-                      <td className="py-3 text-slate-600">{record.updatedBy?.name || 'Unknown'}</td>
+                      <td className="py-3 text-slate-600">
+                        {record.updatedBy ? `${record.updatedBy.name} (${record.updatedBy._id})` : 'Unknown'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

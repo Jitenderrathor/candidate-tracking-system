@@ -9,7 +9,20 @@ import { changePasswordSchema } from '@/features/auth/auth.schemas';
 import { PasswordField } from '@/features/auth/components/PasswordField';
 import { PasswordStrength } from '@/features/auth/components/PasswordStrength';
 
+import { useAuth } from '@/hooks/useAuth';
+
 export function ChangePasswordPage() {
+  const { user } = useAuth();
+  if (user?.role === 'User') {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <div className="rounded-xl border bg-white p-8 text-center shadow-sm">
+          <h2 className="text-xl font-semibold text-slate-900">Access Denied</h2>
+          <p className="mt-2 text-slate-500">You do not have permission to change your password.</p>
+        </div>
+      </div>
+    );
+  }
   const {
     formState: { errors },
     handleSubmit,

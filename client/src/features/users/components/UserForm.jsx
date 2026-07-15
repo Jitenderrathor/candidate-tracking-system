@@ -7,6 +7,8 @@ import { PasswordStrength } from '@/features/auth/components/PasswordStrength';
 import { useAuth } from '@/hooks/useAuth';
 import { ROLES } from '@/constants/auth';
 import { addUserSchema, editUserSchema, userDefaults } from '@/features/users/user.schema';
+import { PERMISSION_FEATURES } from '@/constants/permissions';
+import { PermissionSelector } from './PermissionSelector';
 
 const ALL_ROLE_OPTIONS = [
   { label: 'Super Admin', value: ROLES.SUPER_ADMIN },
@@ -26,6 +28,7 @@ export function UserForm({ isEdit = false, isSubmitting, onCancel, onSubmit, use
     register,
     reset,
     watch,
+    setValue,
   } = useForm({
     defaultValues: userDefaults,
     resolver: zodResolver(isEdit ? editUserSchema : addUserSchema),
@@ -38,6 +41,7 @@ export function UserForm({ isEdit = false, isSubmitting, onCancel, onSubmit, use
             fullName: user.fullName || user.name,
             email: user.email,
             role: user.role,
+            permissions: user.permissions || [],
           }
         : userDefaults,
     );
@@ -45,15 +49,19 @@ export function UserForm({ isEdit = false, isSubmitting, onCancel, onSubmit, use
   const password = watch('password');
 
   const submit = (values) => {
-    if (isEdit) onSubmit({ fullName: values.fullName, email: values.email, role: values.role });
+    if (isEdit) onSubmit({ fullName: values.fullName, email: values.email, role: values.role, permissions: values.permissions });
     else
       onSubmit({
         fullName: values.fullName,
         email: values.email,
         role: values.role,
         password: values.password,
+        permissions: values.permissions,
       });
   };
+
+  const currentRole = watch('role');
+  const isSuperAdmin = currentRole === ROLES.SUPER_ADMIN;
 
   return (
     <form className="space-y-6" noValidate onSubmit={handleSubmit(submit)}>
@@ -91,11 +99,30 @@ export function UserForm({ isEdit = false, isSubmitting, onCancel, onSubmit, use
       </Card>
       {!isEdit && (
         <Card>
-          <header className="mb-6">
-            <h2 className="font-semibold text-slate-950">Initial Password</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              The user can change this password after signing in.
-            </p>
+          <header className="mb-6 flex items-start justify-between">
+            <div>
+              <h2 className="font-semibold text-slate-950">Initial Password</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {currentRole === 'User' ? 'This password will be permanent as standard users cannot change it.' : 'The user can change this password after signing in.'}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+                let generated = 'aA1!'; // Guarantee required characters
+                for (let i = 0; i < 10; i++) {
+                  generated += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                generated = generated.split('').sort(() => 0.5 - Math.random()).join('');
+                setValue('password', generated, { shouldValidate: true, shouldDirty: true });
+                setValue('confirmPassword', generated, { shouldValidate: true, shouldDirty: true });
+              }}
+            >
+              Generate Password
+            </Button>
           </header>
           <div className="grid gap-5 md:grid-cols-2">
             <div>
@@ -118,6 +145,49 @@ export function UserForm({ isEdit = false, isSubmitting, onCancel, onSubmit, use
           </div>
         </Card>
       )}
+
+      <Card>
+        <header className="mb-6 flex items-start justify-between">
+          <div>
+            <h2 className="font-semibold text-slate-950">System Permissions</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Select the specific features this user can access.
+            </p>
+          </div>
+          {!isSuperAdmin && (() => {
+            const allPerms = PERMISSION_FEATURES.flatMap((cat) => cat.features.map((f) => f.id));
+            const currentPerms = watch('permissions') || [];
+            const isAllSelected = currentPerms.length === allPerms.length;
+            
+            return (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (isAllSelected) {
+                    setValue('permissions', [], { shouldDirty: true });
+                  } else {
+                    setValue('permissions', allPerms, { shouldDirty: true });
+                  }
+                }}
+                type="button"
+              >
+                {isAllSelected ? 'Deselect All' : 'Select All'}
+              </Button>
+            );
+          })()}
+        </header>
+        {isSuperAdmin ? (
+          <div className="bg-purple-50 border border-purple-200 text-purple-700 p-4 rounded-lg text-sm mb-4">
+            Super Admins implicitly have all permissions. Their access cannot be restricted here.
+          </div>
+        ) : null}
+        <PermissionSelector
+          permissions={watch('permissions') || []}
+          onChange={(newPerms) => setValue('permissions', newPerms, { shouldDirty: true })}
+          disabled={isSuperAdmin}
+        />
+      </Card>
       <div className="flex justify-end gap-3">
         <Button onClick={onCancel} variant="outline">
           Cancel

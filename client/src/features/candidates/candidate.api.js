@@ -62,3 +62,8 @@ export const bulkRestoreCandidates = async () => {
   const response = await apiClient.post('/candidates/trash/bulk-restore');
   return response.data;
 };
+
+export const bulkAssignCandidates = async ({ candidateIds, assignedTo }) => {
+  const response = await apiClient.patch('/candidates/bulk-assign', { candidateIds, assignedTo });
+  return response.data;
+};

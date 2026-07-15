@@ -1,7 +1,7 @@
 const express = require('express');
 const asyncHandler = require('../../common/utils/asyncHandler');
 const { success } = require('../../common/utils/apiResponse');
-const { adminOnly, authenticate } = require('../auth/auth.middleware');
+const { adminOnly, authenticate, requirePermission } = require('../auth/auth.middleware');
 const controller = require('./excelImport.controller');
 const { requireWorkbook, uploadCandidateWorkbook } = require('./excelImport.upload');
 
@@ -18,7 +18,7 @@ router.get('/', (_req, res) => success(res, {
 router.post(
   '/import',
   authenticate,
-  adminOnly,
+  requirePermission('excel_import'),
   uploadCandidateWorkbook,
   requireWorkbook,
   asyncHandler(controller.importCandidates),
@@ -28,7 +28,7 @@ const historyController = require('./importHistory.controller');
 router.get(
   '/history',
   authenticate,
-  adminOnly,
+  requirePermission('excel_import'),
   historyController.listImportHistory
 );
 

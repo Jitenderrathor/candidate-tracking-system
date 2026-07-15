@@ -1,13 +1,15 @@
 import { ChevronLeft, ChevronRight, LogOut, Settings, X } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Brand } from '@/components/common/Brand';
 import { DASHBOARD_NAVIGATION } from '@/constants/navigation';
 import { cn } from '@/utils/cn';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/utils/permissions';
 
 export function AppSidebar({ collapsed, isMobileOpen, onCloseMobile, onLogout, onToggle, user }) {
   const links = DASHBOARD_NAVIGATION.filter(
-    (item) => !item.roles || item.roles.includes(user?.role),
+    (item) => !item.permissions || hasPermission(user, item.permissions),
   );
   const itemClasses =
     'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors';

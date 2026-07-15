@@ -11,10 +11,12 @@ import { CandidateFilters } from '@/features/candidates/components/CandidateFilt
 import { CandidateListSkeleton } from '@/features/candidates/components/CandidateListSkeleton';
 import { StatusUpdateModal } from '@/features/candidates/components/StatusUpdateModal';
 import { SendBulkEmailModal } from '@/features/candidates/components/SendBulkEmailModal';
+import { AssignCandidateModal } from '@/features/candidates/components/AssignCandidateModal';
 import { StatusBadge } from '@/features/public-dashboard/components/StatusBadge';
-import { useAuth } from '@/hooks/useAuth';
 import { AddCandidatePage } from '@/pages/AddCandidatePage';
 import { formatExperience } from '@/utils/formatters';
+import { hasPermission } from '@/utils/permissions';
+import { useAuth } from '@/hooks/useAuth';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   day: '2-digit',
@@ -24,6 +26,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 const filterDefaults = {
   status: '',
   source: '',
+  assignedTo: '',
   minExperience: '',
   maxExperience: '',
   createdFrom: '',
@@ -43,6 +46,7 @@ export function CandidateListPage() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [bulkActionConfirm, setBulkActionConfirm] = useState(null);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const mode = searchParams.get('mode');
 
   useEffect(() => {
@@ -215,6 +219,11 @@ export function CandidateListPage() {
       render: (c) => <StatusBadge status={c.status} />,
     },
     {
+      key: 'assignedTo',
+      header: 'Assigned To',
+      render: (c) => c.assignedTo ? <span className="text-sm font-medium text-slate-700">{c.assignedTo.name}</span> : <span className="text-sm text-slate-400">Unassigned</span>,
+    },
+    {
       key: 'actions',
       header: 'Actions',
       render: (candidate) => {
@@ -243,21 +252,23 @@ export function CandidateListPage() {
               </a>
             </Button>
           )}
-          {user?.role === ROLES.ADMIN && (
+          {hasPermission(user, 'edit_candidate') && (
             <Button asChild aria-label={`Edit ${candidate.fullName}`} size="icon" variant="ghost">
               <Link to={`${detailPath(candidate.candidateId)}?mode=edit`}>
                 <Pencil className="size-4" />
               </Link>
             </Button>
           )}
-          <Button
-            aria-label={`Update status for ${candidate.fullName}`}
-            onClick={() => setCandidateForStatus(candidate)}
-            size="icon"
-            variant="ghost"
-          >
-            <Workflow className="size-4" />
-          </Button>
+          {hasPermission(user, 'edit_candidate') && (
+            <Button
+              aria-label={`Update status for ${candidate.fullName}`}
+              onClick={() => setCandidateForStatus(candidate)}
+              size="icon"
+              variant="ghost"
+            >
+              <Workflow className="size-4" />
+            </Button>
+          )}
           </div>
         );
       },
@@ -276,7 +287,7 @@ export function CandidateListPage() {
         <div className="flex items-center gap-2">
           {isSelectMode ? (
             <>
-              {selectedIds.size > 0 && user?.role === ROLES.ADMIN && (
+              {selectedIds.size > 0 && hasPermission(user, 'select_multiple') && (
                 <div className="flex items-center gap-2">
                   <Select
                     aria-label="Bulk Actions"
@@ -294,6 +305,8 @@ export function CandidateListPage() {
                         });
                       } else if (action === 'email') {
                         setIsEmailModalOpen(true);
+                      } else if (action === 'assign') {
+                        setIsAssignModalOpen(true);
                       } else if (action.startsWith('status:')) {
                         const status = action.split(':')[1];
                         setBulkActionConfirm({
@@ -305,12 +318,15 @@ export function CandidateListPage() {
                       e.target.value = '';
                     }}
                     options={[
-                      { label: 'Send Bulk Email', value: 'email' },
-                      { label: 'Delete Selected', value: 'delete' },
-                      ...CANDIDATE_STATUSES.map((s) => ({
-                        label: `Mark as ${s}`,
-                        value: `status:${s}`,
-                      })),
+                      ...(hasPermission(user, 'assign_candidates') || user.role === 'Super Admin' || user.role === 'Admin' ? [{ label: 'Assign To...', value: 'assign' }] : []),
+                      ...(hasPermission(user, 'bulk_email') ? [{ label: 'Send Bulk Email', value: 'email' }] : []),
+                      ...(hasPermission(user, 'recycle_bin') ? [{ label: 'Delete Selected', value: 'delete' }] : []),
+                      ...(hasPermission(user, 'edit_candidate')
+                        ? CANDIDATE_STATUSES.map((s) => ({
+                            label: `Mark as ${s}`,
+                            value: `status:${s}`,
+                          }))
+                        : []),
                     ]}
                   />
                 </div>
@@ -327,16 +343,17 @@ export function CandidateListPage() {
             </>
           ) : (
             <>
-              {user?.role === ROLES.ADMIN && (
+              {hasPermission(user, 'select_multiple') && (
                 <Button variant="outline" onClick={() => setIsSelectMode(true)}>
                   Select Multiple
                 </Button>
               )}
-              {user?.role === ROLES.ADMIN && (
+              {hasPermission(user, 'bulk_email') && (
                 <Button variant="outline" onClick={() => setIsEmailModalOpen(true)}>
                   <Mail className="size-4" /> Bulk Email
                 </Button>
               )}
+              {hasPermission(user, 'export_excel') && (
               <Button
                 variant="outline"
                 disabled={exportMutation.isPending || candidatesData.length === 0}
@@ -345,9 +362,12 @@ export function CandidateListPage() {
                 <FileDown className={exportMutation.isPending ? 'size-4 animate-bounce' : 'size-4'} />{' '}
                 Export Excel
               </Button>
+              )}
+              {hasPermission(user, 'add_candidate') && (
               <Button onClick={() => setSearchParams({ mode: 'add' })}>
                 <Plus className="size-4" /> Add Candidate
               </Button>
+              )}
             </>
           )}
         </div>
@@ -414,7 +434,7 @@ export function CandidateListPage() {
           candidate={candidateForStatus}
           isOpen
           onClose={() => setCandidateForStatus(null)}
-          role={user?.role}
+          user={user}
         />
       )}
       {bulkActionConfirm && (
@@ -452,6 +472,17 @@ export function CandidateListPage() {
         <SendBulkEmailModal
           isOpen={isEmailModalOpen}
           onClose={() => setIsEmailModalOpen(false)}
+          candidateIds={Array.from(selectedIds)}
+          onSuccess={() => {
+            setSelectedIds(new Set());
+            setIsSelectMode(false);
+          }}
+        />
+      )}
+      {isAssignModalOpen && (
+        <AssignCandidateModal
+          isOpen={isAssignModalOpen}
+          onClose={() => setIsAssignModalOpen(false)}
           candidateIds={Array.from(selectedIds)}
           onSuccess={() => {
             setSelectedIds(new Set());

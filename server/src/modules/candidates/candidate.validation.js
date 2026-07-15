@@ -57,6 +57,7 @@ const listCandidatesValidation = [
   query('search').optional().isString().trim().isLength({ max: 100 }),
   query('status').optional().isIn(CANDIDATE_STATUSES),
   query('source').optional().isString().trim().isLength({ max: 200 }),
+  query('assignedTo').optional().isMongoId(),
   query('qualification').optional().isString().trim().isLength({ max: 200 }),
   query('minExperience').optional().isFloat({ min: 0, max: 80 }).toFloat(),
   query('maxExperience').optional().isFloat({ min: 0, max: 80 }).toFloat(),
@@ -78,9 +79,15 @@ const listCandidatesValidation = [
   }),
 ];
 
+const bulkAssignValidation = [
+  body('candidateIds').isArray({ min: 1 }).withMessage('candidateIds must be a non-empty array'),
+  body('assignedTo').isMongoId().withMessage('assignedTo must be a valid User ID'),
+];
+
 module.exports = {
   candidateIdValidation,
   createCandidateValidation,
   listCandidatesValidation,
   updateCandidateValidation,
+  bulkAssignValidation,
 };

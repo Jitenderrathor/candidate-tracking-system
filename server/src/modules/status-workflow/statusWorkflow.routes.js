@@ -1,7 +1,7 @@
 const express = require('express');
 const asyncHandler = require('../../common/utils/asyncHandler');
 const validateRequest = require('../../common/middleware/validateRequest');
-const { userOrAdmin } = require('../auth/auth.middleware');
+const { requirePermission } = require('../auth/auth.middleware');
 const { candidateIdValidation } = require('../candidates/candidate.validation');
 const controller = require('./statusWorkflow.controller');
 const { transitionValidation } = require('./statusWorkflow.validation');
@@ -19,7 +19,7 @@ router.get('/', (_req, res) => success(res, {
 }));
 router.patch(
   '/status',
-  userOrAdmin,
+  requirePermission('edit_candidate'),
   candidateIdValidation,
   transitionValidation,
   validateRequest,
@@ -27,7 +27,6 @@ router.patch(
 );
 router.get(
   '/history',
-  userOrAdmin,
   candidateIdValidation,
   validateRequest,
   asyncHandler(controller.getHistory),

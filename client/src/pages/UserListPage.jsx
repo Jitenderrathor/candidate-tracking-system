@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Filter, KeyRound, Pencil, Plus, RefreshCw, UserCheck, UserX } from 'lucide-react';
+import { Filter, KeyRound, Pencil, Plus, RefreshCw, UserCheck, UserX, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button, Card, EmptyState, Pagination, SearchBox, Table } from '@/components/common';
@@ -8,6 +8,7 @@ import { ResetPasswordModal } from '@/features/users/components/ResetPasswordMod
 import { UserFilters } from '@/features/users/components/UserFilters';
 import { UserListSkeleton } from '@/features/users/components/UserListSkeleton';
 import { UserStatusModal } from '@/features/users/components/UserStatusModal';
+import { UserDeleteModal } from '@/features/users/components/UserDeleteModal';
 import { useAuth } from '@/hooks/useAuth';
 import { AddUserPage } from '@/pages/AddUserPage';
 import { EditUserPage } from '@/pages/EditUserPage';
@@ -39,6 +40,7 @@ export function UserListPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [statusUser, setStatusUser] = useState(null);
   const [resetUser, setResetUser] = useState(null);
+  const [deleteModalUser, setDeleteModalUser] = useState(null);
   const mode = searchParams.get('mode');
   const editId = searchParams.get('id');
   const filters = useMemo(
@@ -159,6 +161,17 @@ export function UserListPage() {
             >
               <KeyRound className="size-4" />
             </Button>
+            <Button
+              aria-label={`Delete ${user.fullName}`}
+              disabled={isSelf}
+              onClick={() => setDeleteModalUser(user)}
+              size="icon"
+              title={isSelf ? 'You cannot delete your own account' : undefined}
+              variant="ghost"
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="size-4" />
+            </Button>
           </div>
         );
       },
@@ -241,6 +254,9 @@ export function UserListPage() {
       )}
       {resetUser && (
         <ResetPasswordModal isOpen onClose={() => setResetUser(null)} user={resetUser} />
+      )}
+      {deleteModalUser && (
+        <UserDeleteModal isOpen onClose={() => setDeleteModalUser(null)} user={deleteModalUser} />
       )}
     </div>
   );

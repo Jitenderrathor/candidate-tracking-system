@@ -1,78 +1,20 @@
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Check, X, Shield, Users, Mail, Settings, LayoutDashboard, UserSearch, BarChart3, FileSpreadsheet, Trash2 } from 'lucide-react';
-import { Card, Select, Loader } from '@/components/common';
-import { listUsers } from '@/features/users/user.api';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Shield } from 'lucide-react';
+import { Card, Select, Loader, Button } from '@/components/common';
+import { listUsers, updateUser } from '@/features/users/user.api';
 import { ROLES } from '@/constants/auth';
-
-const PERMISSION_FEATURES = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard Overview',
-    description: 'View overall system metrics and recent activity',
-    icon: LayoutDashboard,
-    roles: [ROLES.USER, ROLES.ADMIN, ROLES.SUPER_ADMIN],
-  },
-  {
-    id: 'candidates',
-    label: 'Candidate Management',
-    description: 'View, add, and manage candidate profiles',
-    icon: UserSearch,
-    roles: [ROLES.USER, ROLES.ADMIN, ROLES.SUPER_ADMIN],
-  },
-  {
-    id: 'reports',
-    label: 'View Reports',
-    description: 'Access detailed analytical reports',
-    icon: BarChart3,
-    roles: [ROLES.USER, ROLES.ADMIN, ROLES.SUPER_ADMIN],
-  },
-  {
-    id: 'excel_import',
-    label: 'Bulk Excel Import',
-    description: 'Import multiple candidates via Excel',
-    icon: FileSpreadsheet,
-    roles: [ROLES.ADMIN, ROLES.SUPER_ADMIN],
-  },
-  {
-    id: 'manage_users',
-    label: 'Manage Standard Users',
-    description: 'Create and manage standard User accounts',
-    icon: Users,
-    roles: [ROLES.ADMIN, ROLES.SUPER_ADMIN],
-  },
-  {
-    id: 'recycle_bin',
-    label: 'Recycle Bin Access',
-    description: 'View and restore deleted records',
-    icon: Trash2,
-    roles: [ROLES.ADMIN, ROLES.SUPER_ADMIN],
-  },
-  {
-    id: 'email_templates',
-    label: 'Email Templates',
-    description: 'Manage system email templates',
-    icon: Mail,
-    roles: [ROLES.ADMIN, ROLES.SUPER_ADMIN],
-  },
-  {
-    id: 'system_settings',
-    label: 'System Settings',
-    description: 'Access configuration for SMTP, Accounts, etc.',
-    icon: Settings,
-    roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN],
-  },
-  {
-    id: 'manage_admins',
-    label: 'Full Admin Management',
-    description: 'Create and manage other Admins',
-    icon: Shield,
-    roles: [ROLES.SUPER_ADMIN],
-  },
-];
+import { PERMISSION_FEATURES } from '@/constants/permissions';
+import { PermissionSelector } from '@/features/users/components/PermissionSelector';
+import toast from 'react-hot-toast';
 
 export function UserPermissionsForm() {
+  const queryClient = useQueryClient();
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [localPermissions, setLocalPermissions] = useState([]);
+  const [expandedCategories, setExpandedCategories] = useState(
+    PERMISSION_FEATURES.reduce((acc, cat) => ({ ...acc, [cat.category]: true }), {})
+  );
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['users', { limit: 500 }],
@@ -80,6 +22,17 @@ export function UserPermissionsForm() {
   });
 
   const users = data?.users || [];
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, permissions }) => updateUser({ id, values: { permissions } }),
+    onSuccess: () => {
+      toast.success('Permissions updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.error?.message || 'Failed to update permissions');
+    },
+  });
 
   const userOptions = useMemo(() => {
     return [
@@ -91,6 +44,22 @@ export function UserPermissionsForm() {
   const selectedUser = useMemo(() => {
     return users.find(u => (u.id || u._id) === selectedUserId);
   }, [selectedUserId, users]);
+
+  useEffect(() => {
+    if (selectedUser) {
+      setLocalPermissions(selectedUser.permissions || []);
+    } else {
+      setLocalPermissions([]);
+    }
+  }, [selectedUser]);
+
+  const handleSave = () => {
+    if (!selectedUserId) return;
+    updateMutation.mutate({ id: selectedUserId, permissions: localPermissions });
+  };
+
+  const isSuperAdmin = selectedUser?.role === ROLES.SUPER_ADMIN;
+  const hasChanges = selectedUser && JSON.stringify([...localPermissions].sort()) !== JSON.stringify([...(selectedUser.permissions || [])].sort());
 
   if (isLoading) {
     return (
@@ -110,11 +79,22 @@ export function UserPermissionsForm() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header>
-        <h2 className="text-lg font-semibold text-slate-950">User Permissions Viewer</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Select a user to audit their system access and feature permissions. Permissions are strictly tied to their role.
-        </p>
+      <header className="flex justify-between items-start">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-950">User Permissions Viewer</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Select a user to audit and modify their system access permissions.
+          </p>
+        </div>
+        {selectedUser && !isSuperAdmin && (
+          <Button 
+            onClick={handleSave} 
+            disabled={!hasChanges || updateMutation.isPending}
+            isLoading={updateMutation.isPending}
+          >
+            Save Permissions
+          </Button>
+        )}
       </header>
 
       <div className="max-w-md">
@@ -136,38 +116,48 @@ export function UserPermissionsForm() {
             <Shield className={`size-8 ${selectedUser.role === ROLES.SUPER_ADMIN ? 'text-purple-600' : selectedUser.role === ROLES.ADMIN ? 'text-blue-600' : 'text-slate-400'}`} />
           </div>
 
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900 mb-4 uppercase tracking-wider">Feature Access Matrix</h3>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {PERMISSION_FEATURES.map((feature) => {
-                const Icon = feature.icon;
-                const hasAccess = feature.roles.includes(selectedUser.role);
+          {isSuperAdmin && (
+            <div className="bg-purple-50 border border-purple-200 text-purple-700 p-4 rounded-lg text-sm">
+              Super Admins implicitly have all permissions. Their access cannot be restricted here.
+            </div>
+          )}
+
+          <Card>
+            <header className="mb-6 flex items-start justify-between">
+              <div>
+                <h3 className="font-semibold text-slate-950">System Permissions</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Select the specific features this user can access.
+                </p>
+              </div>
+              {!isSuperAdmin && (() => {
+                const allPerms = PERMISSION_FEATURES.flatMap((cat) => cat.features.map((f) => f.id));
+                const isAllSelected = localPermissions.length === allPerms.length;
                 
                 return (
-                  <Card key={feature.id} className={`p-4 transition-all duration-200 ${hasAccess ? 'border-green-200 bg-green-50/30' : 'border-slate-200 bg-slate-50/50 opacity-60'}`}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${hasAccess ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'}`}>
-                          <Icon className="size-4" />
-                        </div>
-                        <h4 className={`text-sm font-semibold ${hasAccess ? 'text-slate-900' : 'text-slate-500'}`}>
-                          {feature.label}
-                        </h4>
-                      </div>
-                      {hasAccess ? (
-                        <Check className="size-5 text-green-600 shrink-0" />
-                      ) : (
-                        <X className="size-5 text-slate-400 shrink-0" />
-                      )}
-                    </div>
-                    <p className="mt-3 text-xs text-slate-500 leading-relaxed ml-[44px]">
-                      {feature.description}
-                    </p>
-                  </Card>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (isAllSelected) {
+                        setLocalPermissions([]);
+                      } else {
+                        setLocalPermissions(allPerms);
+                      }
+                    }}
+                    type="button"
+                  >
+                    {isAllSelected ? 'Deselect All' : 'Select All'}
+                  </Button>
                 );
-              })}
-            </div>
-          </div>
+              })()}
+            </header>
+            <PermissionSelector
+              permissions={localPermissions}
+              onChange={setLocalPermissions}
+              disabled={isSuperAdmin}
+            />
+          </Card>
         </div>
       )}
     </div>

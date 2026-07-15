@@ -1,7 +1,7 @@
 const express = require('express');
 const asyncHandler = require('../../common/utils/asyncHandler');
 const validateRequest = require('../../common/middleware/validateRequest');
-const { adminOnly, authenticate } = require('../auth/auth.middleware');
+const { adminOnly, authenticate, requirePermission, requireAnyPermission } = require('../auth/auth.middleware');
 const controller = require('./user.controller');
 const {
   createUserValidation,
@@ -12,13 +12,14 @@ const {
 
 const router = express.Router();
 
-router.use(authenticate, adminOnly);
-router.get('/', listUsersValidation, validateRequest, asyncHandler(controller.listUsers));
-router.post('/', createUserValidation, validateRequest, asyncHandler(controller.createUser));
-router.get('/:id', userIdValidation, validateRequest, asyncHandler(controller.getUser));
-router.put('/:id', userIdValidation, updateUserValidation, validateRequest, asyncHandler(controller.updateUser));
-router.patch('/:id/activate', userIdValidation, validateRequest, asyncHandler(controller.activateUser));
-router.patch('/:id/deactivate', userIdValidation, validateRequest, asyncHandler(controller.deactivateUser));
-router.post('/:id/reset-password', userIdValidation, validateRequest, asyncHandler(controller.resetPassword));
+router.use(authenticate);
+router.get('/', requireAnyPermission('manage_users', 'assign_candidates'), listUsersValidation, validateRequest, asyncHandler(controller.listUsers));
+router.post('/', requirePermission('manage_users'), createUserValidation, validateRequest, asyncHandler(controller.createUser));
+router.get('/:id', requirePermission('manage_users'), userIdValidation, validateRequest, asyncHandler(controller.getUser));
+router.put('/:id', requirePermission('manage_users'), userIdValidation, updateUserValidation, validateRequest, asyncHandler(controller.updateUser));
+router.patch('/:id/activate', requirePermission('manage_users'), userIdValidation, validateRequest, asyncHandler(controller.activateUser));
+router.patch('/:id/deactivate', requirePermission('manage_users'), userIdValidation, validateRequest, asyncHandler(controller.deactivateUser));
+router.post('/:id/reset-password', requirePermission('manage_users'), userIdValidation, validateRequest, asyncHandler(controller.resetPassword));
+router.delete('/:id', requirePermission('manage_users'), userIdValidation, validateRequest, asyncHandler(controller.deleteUser));
 
 module.exports = router;
