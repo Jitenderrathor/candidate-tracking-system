@@ -7,9 +7,9 @@ const { sendUserCreationEmail } = require('../email/email.service');
 const SORT_FIELDS = Object.freeze({ name: 'name', fullName: 'name', createdAt: 'createdAt' });
 
 const PERMISSION_MAPPINGS = {
-  'User': ['dashboard', 'candidates', 'reports'],
-  'Admin': ['dashboard', 'candidates', 'reports', 'excel_import', 'manage_users', 'recycle_bin', 'email_templates'],
-  'Super Admin': ['dashboard', 'candidates', 'reports', 'excel_import', 'manage_users', 'recycle_bin', 'email_templates', 'system_settings', 'manage_admins']
+  'User': ['dashboard', 'edit_candidate'],
+  'Admin': ['dashboard', 'reports', 'edit_candidate', 'add_candidate', 'assign_candidates', 'select_multiple', 'bulk_email', 'export_excel', 'excel_import', 'manage_users', 'recycle_bin', 'email_templates'],
+  'Super Admin': ['dashboard', 'reports', 'edit_candidate', 'add_candidate', 'assign_candidates', 'select_multiple', 'bulk_email', 'export_excel', 'excel_import', 'manage_users', 'recycle_bin', 'email_templates', 'system_settings', 'manage_admins', 'wipe_data']
 };
 
 const toPublicUser = (user) => {
@@ -58,8 +58,15 @@ const createUserService = ({ UserModel = User, temporaryPasswordFactory = genera
     const page = Number(query.page || 1);
     const limit = Number(query.limit || 20);
     const filter = buildFilter(query);
-    if (actor && actor.role === 'Admin') {
-      filter.role = 'User';
+    if (actor && actor.role !== 'Super Admin') {
+      const allowedRoles = actor.permissions?.includes('manage_admins') ? ['User', 'Admin'] : ['User'];
+      if (filter.role) {
+        if (!allowedRoles.includes(filter.role)) {
+          filter.role = 'None';
+        }
+      } else {
+        filter.role = { $in: allowedRoles };
+      }
     }
     const [users, total] = await Promise.all([
       UserModel.find(filter).sort(parseSort(query.sort)).skip((page - 1) * limit).limit(limit).lean(),
@@ -74,8 +81,13 @@ const createUserService = ({ UserModel = User, temporaryPasswordFactory = genera
   const getById = async (id) => toPublicUser(await getDocument(id));
 
   const create = async ({ fullName, email, password, role, permissions }, actor) => {
-    if (actor.role === 'Admin' && role !== 'User') {
-      throw new AppError('Admins can only create standard Users', 403, { code: 'FORBIDDEN_ROLE_CREATION' });
+    if (actor.role !== 'Super Admin') {
+      if (role === 'Super Admin') {
+        throw new AppError('Only Super Admins can create Super Admins', 403, { code: 'FORBIDDEN_ROLE_CREATION' });
+      }
+      if (role === 'Admin' && !actor.permissions?.includes('manage_admins')) {
+        throw new AppError('You do not have permission to create Admins', 403, { code: 'FORBIDDEN_ROLE_CREATION' });
+      }
     }
     await ensureUniqueEmail(email);
     
@@ -100,11 +112,19 @@ const createUserService = ({ UserModel = User, temporaryPasswordFactory = genera
 
   const update = async (id, changes, actor) => {
     const user = await getDocument(id);
-    if (actor.role === 'Admin' && user.role !== 'User') {
-      throw new AppError('Admins can only modify standard Users', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
-    }
-    if (actor.role === 'Admin' && changes.role && changes.role !== 'User') {
-      throw new AppError('Admins cannot grant elevated roles', 403, { code: 'FORBIDDEN_ROLE_ELEVATION' });
+    if (actor.role !== 'Super Admin') {
+      if (user.role === 'Super Admin') {
+        throw new AppError('You cannot modify Super Admins', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+      }
+      if (user.role === 'Admin' && !actor.permissions?.includes('manage_admins')) {
+        throw new AppError('You do not have permission to modify Admins', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+      }
+      if (changes.role === 'Super Admin') {
+        throw new AppError('You cannot grant Super Admin role', 403, { code: 'FORBIDDEN_ROLE_ELEVATION' });
+      }
+      if (changes.role === 'Admin' && !actor.permissions?.includes('manage_admins')) {
+        throw new AppError('You do not have permission to grant Admin role', 403, { code: 'FORBIDDEN_ROLE_ELEVATION' });
+      }
     }
     if (changes.email && changes.email.toLowerCase() !== user.email) {
       await ensureUniqueEmail(changes.email, user._id);
@@ -128,8 +148,13 @@ const createUserService = ({ UserModel = User, temporaryPasswordFactory = genera
       });
     }
     const user = await getDocument(id);
-    if (actor.role === 'Admin' && user.role !== 'User') {
-      throw new AppError('Admins can only deactivate standard Users', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+    if (actor.role !== 'Super Admin') {
+      if (user.role === 'Super Admin') {
+        throw new AppError('You cannot deactivate Super Admins', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+      }
+      if (user.role === 'Admin' && !actor.permissions?.includes('manage_admins')) {
+        throw new AppError('You do not have permission to deactivate Admins', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+      }
     }
     user.isActive = isActive;
     user.updatedBy = actor._id;
@@ -139,8 +164,13 @@ const createUserService = ({ UserModel = User, temporaryPasswordFactory = genera
 
   const resetPassword = async (id, actor) => {
     const user = await getDocument(id);
-    if (actor.role === 'Admin' && user.role !== 'User') {
-      throw new AppError('Admins can only reset passwords for standard Users', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+    if (actor.role !== 'Super Admin') {
+      if (user.role === 'Super Admin') {
+        throw new AppError('You cannot reset password for Super Admins', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+      }
+      if (user.role === 'Admin' && !actor.permissions?.includes('manage_admins')) {
+        throw new AppError('You do not have permission to reset passwords for Admins', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+      }
     }
     const temporaryPassword = temporaryPasswordFactory();
     user.password = temporaryPassword;
@@ -158,8 +188,13 @@ const createUserService = ({ UserModel = User, temporaryPasswordFactory = genera
       });
     }
     const user = await getDocument(id);
-    if (actor.role === 'Admin' && user.role !== 'User') {
-      throw new AppError('Admins can only delete standard Users', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+    if (actor.role !== 'Super Admin') {
+      if (user.role === 'Super Admin') {
+        throw new AppError('You cannot delete Super Admins', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+      }
+      if (user.role === 'Admin' && !actor.permissions?.includes('manage_admins')) {
+        throw new AppError('You do not have permission to delete Admins', 403, { code: 'FORBIDDEN_USER_MODIFICATION' });
+      }
     }
     await UserModel.findByIdAndDelete(id);
     return true;

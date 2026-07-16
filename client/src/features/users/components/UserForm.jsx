@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button, Card, Input, Loader, Select } from '@/components/common';
 import { PasswordField } from '@/features/auth/components/PasswordField';
@@ -7,7 +7,7 @@ import { PasswordStrength } from '@/features/auth/components/PasswordStrength';
 import { useAuth } from '@/hooks/useAuth';
 import { ROLES } from '@/constants/auth';
 import { addUserSchema, editUserSchema, userDefaults } from '@/features/users/user.schema';
-import { PERMISSION_FEATURES } from '@/constants/permissions';
+import { PERMISSION_FEATURES, DEFAULT_ROLE_PERMISSIONS } from '@/constants/permissions';
 import { PermissionSelector } from './PermissionSelector';
 
 const ALL_ROLE_OPTIONS = [
@@ -19,9 +19,12 @@ const ALL_ROLE_OPTIONS = [
 export function UserForm({ isEdit = false, isSubmitting, onCancel, onSubmit, user }) {
   const { user: currentUser } = useAuth();
   
-  const roleOptions = currentUser?.role === ROLES.SUPER_ADMIN 
-    ? ALL_ROLE_OPTIONS 
-    : ALL_ROLE_OPTIONS.filter(r => r.value === ROLES.USER);
+  let roleOptions = ALL_ROLE_OPTIONS.filter(r => r.value === ROLES.USER);
+  if (currentUser?.role === ROLES.SUPER_ADMIN) {
+    roleOptions = ALL_ROLE_OPTIONS;
+  } else if (currentUser?.permissions?.includes('manage_admins')) {
+    roleOptions = ALL_ROLE_OPTIONS.filter(r => r.value !== ROLES.SUPER_ADMIN);
+  }
   const {
     formState: { errors },
     handleSubmit,
@@ -33,6 +36,11 @@ export function UserForm({ isEdit = false, isSubmitting, onCancel, onSubmit, use
     defaultValues: userDefaults,
     resolver: zodResolver(isEdit ? editUserSchema : addUserSchema),
   });
+  
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const currentRole = watch('role');
+  const [previousRole, setPreviousRole] = useState(user?.role || 'User');
+
   useEffect(() => {
     reset(
       user
@@ -45,7 +53,17 @@ export function UserForm({ isEdit = false, isSubmitting, onCancel, onSubmit, use
           }
         : userDefaults,
     );
+    // Use setTimeout to allow the reset to fully flush to the form state before we start listening for manual changes
+    setTimeout(() => setHasInitialized(true), 0);
   }, [reset, user]);
+
+  useEffect(() => {
+    if (hasInitialized && currentRole && currentRole !== previousRole) {
+      setPreviousRole(currentRole);
+      setValue('permissions', DEFAULT_ROLE_PERMISSIONS[currentRole] || [], { shouldDirty: true });
+    }
+  }, [currentRole, previousRole, setValue, hasInitialized]);
+
   const password = watch('password');
 
   const submit = (values) => {
@@ -60,7 +78,6 @@ export function UserForm({ isEdit = false, isSubmitting, onCancel, onSubmit, use
       });
   };
 
-  const currentRole = watch('role');
   const isSuperAdmin = currentRole === ROLES.SUPER_ADMIN;
 
   return (

@@ -23,9 +23,12 @@ const sortOptions = [
 export function UserFilters({ filters, onApply, onReset }) {
   const { user } = useAuth();
   
-  const roleOptions = user?.role === ROLES.SUPER_ADMIN 
-    ? ALL_ROLE_OPTIONS 
-    : ALL_ROLE_OPTIONS.filter(r => r.value === ROLES.USER);
+  let roleOptions = ALL_ROLE_OPTIONS.filter(r => r.value === ROLES.USER);
+  if (user?.role === ROLES.SUPER_ADMIN) {
+    roleOptions = ALL_ROLE_OPTIONS;
+  } else if (user?.permissions?.includes('manage_admins')) {
+    roleOptions = ALL_ROLE_OPTIONS.filter(r => r.value !== ROLES.SUPER_ADMIN);
+  }
 
   const [draft, setDraft] = useState(filters);
   const change = (field) => (event) =>

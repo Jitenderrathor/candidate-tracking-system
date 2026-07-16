@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_ROLE_PERMISSIONS } from '@/constants/permissions';
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(1, 'Full name is required').max(100),
@@ -34,5 +35,5 @@ export const userDefaults = {
   role: 'User',
   password: '',
   confirmPassword: '',
-  permissions: ['edit_candidate'],
+  permissions: DEFAULT_ROLE_PERMISSIONS['User'],
 };

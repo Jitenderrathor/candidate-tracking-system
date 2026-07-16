@@ -32,11 +32,14 @@ export function SettingsLayout() {
 
   const tabs = [
     { id: 'account', label: 'Account Settings', icon: User },
-    { id: 'smtp', label: 'SMTP Configuration', icon: Server },
-    { id: 'email', label: 'Email Defaults', icon: Mail },
   ];
 
-  if (hasPermission(user, 'manage_users')) {
+  if (hasPermission(user, 'system_settings')) {
+    tabs.push({ id: 'smtp', label: 'SMTP Configuration', icon: Server });
+    tabs.push({ id: 'email', label: 'Email Defaults', icon: Mail });
+  }
+
+  if (hasPermission(user, 'manage_users') || hasPermission(user, 'manage_admins')) {
     tabs.push({ id: 'users', label: 'Manage Users', icon: Users });
   }
 

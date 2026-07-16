@@ -401,7 +401,7 @@ const createExcelImportService = ({
     }).select('email mobile').session(session).lean();
   };
 
-  const importCandidates = async ({ buffer, fileName, actor, requestContext }) => {
+  const importCandidates = async ({ buffer, fileName, actor, requestContext, assignedTo }) => {
     await auditService.logExcelImportStarted({
       userId: actor.id,
       fileName,
@@ -480,6 +480,7 @@ const createExcelImportService = ({
             candidateId: `CRTS${String(firstSequence + index).padStart(6, '0')}`,
             createdBy: actor.id,
             updatedBy: actor.id,
+            assignedTo: assignedTo || null,
           }));
           await CandidateModel.insertMany(documents, { session, ordered: true });
         }

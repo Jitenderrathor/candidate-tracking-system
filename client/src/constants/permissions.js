@@ -32,3 +32,9 @@ export const PERMISSION_FEATURES = [
     ]
   }
 ];
+
+export const DEFAULT_ROLE_PERMISSIONS = {
+  'User': ['dashboard', 'edit_candidate'],
+  'Admin': ['dashboard', 'reports', 'edit_candidate', 'add_candidate', 'assign_candidates', 'select_multiple', 'bulk_email', 'export_excel', 'excel_import', 'manage_users', 'recycle_bin', 'email_templates'],
+  'Super Admin': ['dashboard', 'reports', 'edit_candidate', 'add_candidate', 'assign_candidates', 'select_multiple', 'bulk_email', 'export_excel', 'excel_import', 'manage_users', 'recycle_bin', 'email_templates', 'system_settings', 'manage_admins', 'wipe_data']
+};

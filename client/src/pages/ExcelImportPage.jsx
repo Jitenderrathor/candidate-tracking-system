@@ -1,24 +1,40 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, FileUp, RefreshCw, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Button, Card, Loader, Modal } from '@/components/common';
+import { Button, Card, Loader, Modal, Select } from '@/components/common';
 import { importCandidateWorkbook } from '@/features/excel-import/excelImport.api';
+import { listUsers } from '@/features/users/user.api';
+import { useAuth } from '@/hooks/useAuth';
 import { ExcelDropzone } from '@/features/excel-import/components/ExcelDropzone';
 import { ImportResults } from '@/features/excel-import/components/ImportResults';
 import { UploadProgress } from '@/features/excel-import/components/UploadProgress';
 import { downloadExcelTemplate } from '@/features/excel-import/excelTemplate';
 
 export function ExcelImportPage() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [progress, setProgress] = useState(0);
   const [isDownloading, setDownloading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [assignedTo, setAssignedTo] = useState('');
+
+  const usersQuery = useQuery({
+    queryKey: ['users', { limit: 500 }],
+    queryFn: () => listUsers({ limit: 500 }),
+    enabled: user?.role === 'Admin' || user?.role === 'Super Admin',
+  });
+
+  const userOptions = usersQuery.data?.users?.map((u) => ({
+    label: u.fullName || u.name,
+    value: u._id,
+  })) || [];
+
   const mutation = useMutation({
-    mutationFn: (selectedFile) =>
-      importCandidateWorkbook({ file: selectedFile, onProgress: setProgress }),
+    mutationFn: ({ file: selectedFile, assignedTo: selectedAssignedTo }) =>
+      importCandidateWorkbook({ file: selectedFile, assignedTo: selectedAssignedTo, onProgress: setProgress }),
     onSuccess: async (response) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['candidates'] }),
@@ -35,13 +51,14 @@ export function ExcelImportPage() {
       return;
     }
     setProgress(0);
-    mutation.mutate(file);
+    mutation.mutate({ file, assignedTo });
   };
   const startAnother = () => {
     mutation.reset();
     setFile(null);
     setFileError('');
     setProgress(0);
+    setAssignedTo('');
   };
   const downloadTemplate = async () => {
     setDownloading(true);
@@ -90,6 +107,15 @@ export function ExcelImportPage() {
             onError={setFileError}
             onFileChange={setFile}
           />
+          {(user?.role === 'Admin' || user?.role === 'Super Admin') && (
+            <Select
+              label="Assign Imported Candidates To (Optional)"
+              onChange={(e) => setAssignedTo(e.target.value)}
+              options={[{ label: 'Unassigned', value: '' }, ...userOptions]}
+              value={assignedTo}
+              disabled={usersQuery.isLoading || mutation.isPending}
+            />
+          )}
           {mutation.isPending && <UploadProgress progress={progress} />}
           {mutation.isError && (
             <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">

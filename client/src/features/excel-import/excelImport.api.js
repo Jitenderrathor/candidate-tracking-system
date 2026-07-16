@@ -1,8 +1,9 @@
 import { apiClient } from '@/api/client';
 
-export const importCandidateWorkbook = async ({ file, onProgress }) => {
+export const importCandidateWorkbook = async ({ file, assignedTo, onProgress }) => {
   const formData = new FormData();
   formData.append('file', file);
+  if (assignedTo) formData.append('assignedTo', assignedTo);
   const response = await apiClient.post('/excel/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: (event) => {
